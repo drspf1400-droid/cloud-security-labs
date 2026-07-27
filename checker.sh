@@ -94,7 +94,6 @@ calculate_score() {
     echo "[+] Security Score:"
     echo "${score}/100"
 }
-}
 show_header
 check_system
 check_resources
