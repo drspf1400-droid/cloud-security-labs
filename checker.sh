@@ -67,6 +67,7 @@ check_ssh() {
 }
 
 check_firewall() {
+calculate_score
     echo
     echo "[+] Firewall:"
 
@@ -76,7 +77,17 @@ check_firewall() {
         echo -e "${RED}UFW is inactive or not installed${NC}"
     fi
 }
+calculate_score() {
+    score=0
 
+    ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1 && score=$((score + 33))
+    systemctl is-active --quiet ssh && score=$((score + 33))
+    systemctl is-active --quiet ufw && score=$((score + 34))
+
+    echo
+    echo "[+] Security Score:"
+    echo "${score}/100"
+}
 show_header
 check_system
 check_resources
