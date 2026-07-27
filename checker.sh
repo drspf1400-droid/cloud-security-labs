@@ -79,20 +79,20 @@ calculate_score
 }
 calculate_score() {
     score=0
+    ssh_config=$(sudo sshd -T 2>/dev/null)
 
     systemctl is-active --quiet ufw && score=$((score + 40))
 
-    grep -REiq '^[[:space:]]*PermitRootLogin[[:space:]]+(no|prohibit-password)' \
-    /etc/ssh/sshd_config /etc/ssh/sshd_config.d 2>/dev/null \
+    echo "$ssh_config" | grep -Eq '^permitrootlogin (no|prohibit-password)$' \
     && score=$((score + 30))
 
-    grep -REiq '^[[:space:]]*PasswordAuthentication[[:space:]]+no' \
-    /etc/ssh/sshd_config /etc/ssh/sshd_config.d 2>/dev/null \
+    echo "$ssh_config" | grep -q '^passwordauthentication no$' \
     && score=$((score + 30))
 
     echo
     echo "[+] Security Score:"
     echo "${score}/100"
+
 }
 show_header
 check_system
