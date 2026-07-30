@@ -24,6 +24,9 @@ check_system() {
     echo
     echo "[+] Kernel Version:"
     uname -r
+echo "[+] Operating System:"
+grep PRETTY_NAME /etc/os-release | cut -d '"' -f2
+echo
 
     echo
     echo "[+] Uptime:"
@@ -90,6 +93,26 @@ calculate_score() {
     echo
     echo "[+] Security Score:"
     echo  "${score}/100"
+
+show_recommendations() {
+echo
+echo "[+] Security Recommendations:"
+if ! systemctl is-active --quiet ufw; then
+echo "[HIGH] Firewall is inactive"
+echo "Recommendation: Enable UFW firewall"
+echo "Command: sudo ufw enable"
+fi
+if ! sudo sshd -T | grep -q "passwordauthentication no"; then
+echo "[MEDIUM] SSH password Authentication is enabled"
+echo "Recommendation: Disable password login"
+echo "Edit: /etc/ssh/sshd_config"
+fi
+if ! sudo sshd -T | grep -Eq "permitrootlogin (no|without-password)"; then
+echo "[HIGH] Root SSH Login is allowed"
+echo "Recommendation: Disable root login"
+echo "Edit: /etc/ssh/sshd_config"
+fi
+}
 }
 show_header
 check_system
@@ -97,7 +120,7 @@ check_resources
 check_internet
 check_ssh
 check_firewall
-
+show_recommendations
 echo
 echo -e "${BLUE}Finished${NC}"
 
