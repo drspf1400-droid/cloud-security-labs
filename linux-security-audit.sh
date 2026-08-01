@@ -1,9 +1,9 @@
 #!/bin/bash
-echo"----"
-echo"Linux Security Audit"
-echo"----"
+echo "----"
+echo "Linux Security Audit"
+echo "----"
 echo
-echo "[1] "Hostname"
+echo "[1] Hostname"
 echo
 
 echo "[2] Current User"
