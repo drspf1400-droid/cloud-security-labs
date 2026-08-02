@@ -1,10 +1,6 @@
 #!/bin/bash
 
-GREEN="\e[32m"
-RED="\e[31m"
-YELLOW="\e[33m"
-BLUE="\e[34m"
-NC="\e[0m"
+source config/colors.sh
 source modules/ssh_check.sh
 show_header() {
     echo -e "${BLUE}==================================${NC}"
