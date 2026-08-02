@@ -5,7 +5,7 @@ RED="\e[31m"
 YELLOW="\e[33m"
 BLUE="\e[34m"
 NC="\e[0m"
-
+source modules/ssh_check.sh
 show_header() {
     echo -e "${BLUE}==================================${NC}"
     echo " Linux Security Checker Pro v1.1"
@@ -58,16 +58,7 @@ check_internet() {
     fi
 }
 
-check_ssh() {
-    echo
-    echo "[+] SSH Service:"
 
-    if systemctl is-active --quiet ssh; then
-        echo -e "${GREEN}Running${NC}"
-    else
-        echo -e "${YELLOW}Stopped or not installed${NC}"
-    fi
-}
 
 check_firewall() {
 calculate_score
@@ -114,6 +105,11 @@ echo "Edit: /etc/ssh/sshd_config"
 fi
 }
 }
+generate_html_report(){
+mkdir -p report
+echo "<html><body><h1>Linux Security Report</h1></body></html>" > report/security_report.html
+echo "[+] HTML Report Created"
+}
 show_header
 check_system
 check_resources
@@ -121,6 +117,8 @@ check_internet
 check_ssh
 check_firewall
 show_recommendations
+generate_html_report
+
 echo
 echo -e "${BLUE}Finished${NC}"
 
