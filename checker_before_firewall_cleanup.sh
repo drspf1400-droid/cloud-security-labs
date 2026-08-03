@@ -57,7 +57,17 @@ check_internet() {
 
 
 
+check_firewall() {
+calculate_score
+    echo
+    echo "[+] Firewall:"
 
+    if systemctl is-active --quiet ufw; then
+        echo -e "${GREEN}UFW is active${NC}"
+    else
+        echo -e "${RED}UFW is inactive or not installed${NC}"
+    fi
+}
 calculate_score() {
     score=0
 
@@ -71,7 +81,7 @@ calculate_score() {
     echo
     echo "[+] Security Score:"
     echo  "${score}/100"
-}
+
 show_recommendations() {
 echo
 echo "[+] Security Recommendations:"
@@ -91,8 +101,7 @@ echo "Recommendation: Disable root login"
 echo "Edit: /etc/ssh/sshd_config"
 fi
 }
-
-
+}
 generate_html_report(){
 mkdir -p report
 echo "<html><body><h1>Linux Security Report</h1></body></html>" > report/security_report.html

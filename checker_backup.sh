@@ -1,8 +1,7 @@
 #!/bin/bash
-
+source modules/firewall_check.sh
 source config/colors.sh
 source modules/ssh_check.sh
-source modules/firewall_check.sh
 show_header() {
     echo -e "${BLUE}==================================${NC}"
     echo " Linux Security Checker Pro v1.1"
@@ -71,7 +70,7 @@ calculate_score() {
     echo
     echo "[+] Security Score:"
     echo  "${score}/100"
-}
+
 show_recommendations() {
 echo
 echo "[+] Security Recommendations:"
@@ -91,8 +90,7 @@ echo "Recommendation: Disable root login"
 echo "Edit: /etc/ssh/sshd_config"
 fi
 }
-
-
+}
 generate_html_report(){
 mkdir -p report
 echo "<html><body><h1>Linux Security Report</h1></body></html>" > report/security_report.html
