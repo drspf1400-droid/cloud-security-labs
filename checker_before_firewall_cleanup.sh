@@ -10,8 +10,26 @@ show_header() {
     echo -e "${BLUE}==================================${NC}"
 }
 
+check_system() {
+    echo
+    echo "[+] Hostname:"
+    hostname
 
- 
+    echo
+    echo "[+] Current User:"
+    whoami
+
+    echo
+    echo "[+] Kernel Version:"
+    uname -r
+echo "[+] Operating System:"
+grep PRETTY_NAME /etc/os-release | cut -d '"' -f2
+echo
+
+    echo
+    echo "[+] Uptime:"
+    uptime -p
+}
 
 check_resources() {
     echo
