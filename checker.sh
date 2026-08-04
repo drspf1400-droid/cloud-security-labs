@@ -4,28 +4,14 @@ source config/colors.sh
 source modules/ssh_check.sh
 source modules/firewall_check.sh
 source modules/system_check.sh
+source modules/resource_check.sh
+
 show_header() {
     echo -e "${BLUE}==================================${NC}"
     echo " Linux Security Checker Pro v1.1"
     echo -e "${BLUE}==================================${NC}"
 }
 
-
- 
-
-check_resources() {
-    echo
-    echo "[+] CPU Usage:"
-    top -bn1 | grep -i "Cpu(s)" | head -n 1
-
-    echo
-    echo "[+] RAM Usage:"
-    free -h
-
-    echo
-    echo "[+] Disk Usage:"
-    df -h /
-}
 
 check_internet() {
     echo
