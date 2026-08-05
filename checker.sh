@@ -64,9 +64,22 @@ fi
 
 generate_html_report(){
 mkdir -p report
-echo "<html><body><h1>Linux Security Report</h1></body></html>" > report/security_report.html
+cat <<EOF> report/security_report.html
+<html>
+<body>
+<h1>Linux Security Checker Pro Report</h1>
+<h2>System</h2>
+<p>Hostname: $(hostname)</p>
+<p>Kernel: $(uname -r)</p>
+<p>os: $(grep PRETTY_NAME /etc/os-release | cut -d '"' -f2)</p>
+<h2>Status</h2>
+<p>security checks completed successfully.
+</body>
+</html>
+EOF
 echo "[+] HTML Report Created"
 }
+
 show_header
 check_system
 check_resources
