@@ -41,6 +41,18 @@ echo "$score" > /tmp/security_score
     echo "[+] Security Score:"
     echo  "${score}/100"
 }
+calculate_risk_level(){
+if [ "$score" -ge 80 ]; then
+RISK_LEVEL="LOW"
+elif [ "$score" -ge 50 ]; then
+RISK_LEVEL="MEDIUM"
+else
+RISK_LEVEL="HIGH"
+fi
+echo
+echo "[+] Risk Level:"
+echo "$RISK_LEVEL"
+}
 show_recommendations() {
 echo
 echo "[+] Security Recommendations:"
@@ -64,6 +76,7 @@ fi
 
 generate_html_report(){
 SCORE=$(cat /tmp/security_score)
+RISK=$RISK_LEVEL
 mkdir -p report
 cat <<EOF> report/security_report.html
 <html>
@@ -74,7 +87,8 @@ cat <<EOF> report/security_report.html
 <p>Kernel: $(uname -r)</p>
 <p>os: $(grep PRETTY_NAME /etc/os-release | cut -d '"' -f2)</p>
 <h2>security score</h2>
-<p>score: ${SCORE}/100</P>
+<p>score: ${SCORE}/100</P>" >> report/security_report.html
+echo "<p>Risk level: ${RISK}</p>" >> report/security_report.html
 <h2>Status</h2>
 <p>security checks completed successfully.
 </body>
@@ -90,6 +104,7 @@ check_internet
 check_ssh
 check_firewall
 calculate_score
+calculate_risk_level
 show_recommendations
 
 generate_html_report
