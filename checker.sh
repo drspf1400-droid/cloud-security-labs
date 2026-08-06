@@ -36,7 +36,7 @@ calculate_score() {
     sudo sshd -T | grep -q "passwordauthentication no" && score=$((score + 30))
 
     
-
+echo "$score" > /tmp/security_score
     echo
     echo "[+] Security Score:"
     echo  "${score}/100"
@@ -63,6 +63,7 @@ fi
 
 
 generate_html_report(){
+SCORE=$(cat /tmp/security_score)
 mkdir -p report
 cat <<EOF> report/security_report.html
 <html>
@@ -72,6 +73,8 @@ cat <<EOF> report/security_report.html
 <p>Hostname: $(hostname)</p>
 <p>Kernel: $(uname -r)</p>
 <p>os: $(grep PRETTY_NAME /etc/os-release | cut -d '"' -f2)</p>
+<h2>security score</h2>
+<p>score: ${SCORE}/100</P>
 <h2>Status</h2>
 <p>security checks completed successfully.
 </body>
@@ -86,7 +89,9 @@ check_resources
 check_internet
 check_ssh
 check_firewall
+calculate_score
 show_recommendations
+
 generate_html_report
 
 echo
