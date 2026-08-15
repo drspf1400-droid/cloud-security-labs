@@ -1,11 +1,12 @@
 #!/bin/bash
-
 source config/colors.sh
+source modules/findings.sh
 source modules/ssh_check.sh
 source modules/firewall_check.sh
 source modules/system_check.sh
 source modules/resource_check.sh
 
+type show_findings
 show_header() {
     echo -e "${BLUE}==================================${NC}"
     echo " Linux Security Checker Pro v1.1"
@@ -75,28 +76,60 @@ fi
 
 
 generate_html_report(){
+
 SCORE=$(cat /tmp/security_score)
 RISK=$RISK_LEVEL
+
 mkdir -p report
-cat <<EOF> report/security_report.html
+
+cat <<EOF > report/security_report.html
 <html>
 <body>
+
 <h1>Linux Security Checker Pro Report</h1>
+
 <h2>System</h2>
 <p>Hostname: $(hostname)</p>
 <p>Kernel: $(uname -r)</p>
-<p>os: $(grep PRETTY_NAME /etc/os-release | cut -d '"' -f2)</p>
-<h2>security score</h2>
-<p>score: ${SCORE}/100</P>" >> report/security_report.html
-echo "<p>Risk level: ${RISK}</p>" >> report/security_report.html
+<p>OS: $(grep PRETTY_NAME /etc/os-release | cut -d '"' -f2)</p>
+
+<h2>Security Score</h2>
+<p>Score: ${SCORE}/100</p>
+
+<h2>Risk Level</h2>
+<p>${RISK}</p>
+
 <h2>Status</h2>
-<p>security checks completed successfully.
+<p>Security checks completed successfully.</p>
+
+<h2>Security Findings</h2>
+
+EOF
+
+
+if [ ${#FINDINGS[@]} -eq 0 ]; then
+
+echo "<p>No findings detected</p>" >> report/security_report.html
+
+else
+
+for finding in "${FINDINGS[@]}"; do
+echo "<p>- $finding</p>" >> report/security_report.html
+done
+
+fi
+
+
+cat <<EOF >> report/security_report.html
+
 </body>
 </html>
 EOF
-echo "[+] HTML Report Created"
-}
 
+
+echo "[+] HTML Report Created"
+
+}
 show_header
 check_system
 check_resources
@@ -105,8 +138,8 @@ check_ssh
 check_firewall
 calculate_score
 calculate_risk_level
+show_findings
 show_recommendations
-
 generate_html_report
 
 echo
@@ -114,5 +147,6 @@ echo -e "${BLUE}Finished${NC}"
 
 
  
+
 
 
