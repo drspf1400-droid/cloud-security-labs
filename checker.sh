@@ -5,7 +5,8 @@ source modules/ssh_check.sh
 source modules/firewall_check.sh
 source modules/system_check.sh
 source modules/resource_check.sh
-
+source modules/ports_check.sh
+source modules/services_check.sh
 type show_findings
 show_header() {
     echo -e "${BLUE}==================================${NC}"
@@ -136,6 +137,8 @@ check_resources
 check_internet
 check_ssh
 check_firewall
+check_ports
+check_services
 calculate_score
 calculate_risk_level
 show_findings
