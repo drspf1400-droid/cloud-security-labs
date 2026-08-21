@@ -26,3 +26,14 @@ First, make the script executable:
 
 ```bash
 chmod +x checker.sh
+
+## Running with Docker
+
+You can run this security checker in an isolated container without installing anything on your host system:
+
+```bash
+docker build -t linux-security-checker .
+docker run linux-security-checker
+```
+
+**Note:** Some checks (like `systemctl`-based service detection) behave differently inside a container since containers don't run a full init system. The Dockerfile includes lightweight compatibility shims so the script runs cleanly, but for full accuracy, running directly on a host is recommended.
