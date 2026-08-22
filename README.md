@@ -1,3 +1,6 @@
+[![Docker Build Check](https://github.com/drspf1400-droid/cloud-security-labs/actions/workflows/docker-build.yml/badge.svg)](https://github.com/drspf1400-droid/cloud-security-labs/actions/workflows/docker-build.yml)
+
+
 # Linux Security Checker Pro
 
 Linux Security Checker Pro is a Bash-based security auditing tool designed to perform basic security and system checks on Linux servers.
