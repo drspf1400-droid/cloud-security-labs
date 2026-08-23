@@ -1,6 +1,8 @@
 
 #!/bin/bash
 check_ssh(){
+mkdir -p /run/sshd
+ssh-keygen -A >/dev/null 2>&1
 echo "[+] ssh service:"
 if systemctl is-active --quiet ssh; then 
    echo -e "${GREEN}Running${NC}"
