@@ -8,8 +8,11 @@ RUN apt-get update && apt-get install -y \
     procps \
     net-tools \
     iproute2 \
-    openssh-server \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -f /etc/ssh/ssh_host_* \
+
+openssh-server \    
+&& rm -f /etc/ssh/ssh_host_* \
+&& rm -rf /var/lib/apt/lists/*
 
 RUN printf '#!/bin/bash\nexec "$@"\n' > /usr/local/bin/sudo && \
     chmod +x /usr/local/bin/sudo
