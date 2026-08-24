@@ -7,7 +7,6 @@ source modules/system_check.sh
 source modules/resource_check.sh
 source modules/ports_check.sh
 source modules/services_check.sh
-type show_findings
 show_header() {
     echo -e "${BLUE}==================================${NC}"
     echo " Linux Security Checker Pro v1.1"
@@ -25,23 +24,27 @@ check_internet() {
         echo -e "${RED}Disconnected${NC}"
     fi
 }
-
-
-
-
 calculate_score() {
     score=0
 
+    # Firewall
     systemctl is-active --quiet ufw && score=$((score + 40))
 
-    sudo sshd -T | grep -Eq "permitrootlogin (no|without-password)" && score=$((score + 30))
-    sudo sshd -T | grep -q "passwordauthentication no" && score=$((score + 30))
+    # SSH password authentication
+    if ! printf '%s\n' "${FINDINGS[@]}" | grep -q "SSH password authentication enabled"; then
+        score=$((score + 30))
+    fi
 
-    
-echo "$score" > /tmp/security_score
+    # SSH root login
+    if ! printf '%s\n' "${FINDINGS[@]}" | grep -q "SSH root login enabled"; then
+        score=$((score + 30))
+    fi
+
+    echo "$score" > /tmp/security_score
+
     echo
     echo "[+] Security Score:"
-    echo  "${score}/100"
+    echo "${score}/100"
 }
 calculate_risk_level(){
 if [ "$score" -ge 80 ]; then
@@ -56,26 +59,35 @@ echo "[+] Risk Level:"
 echo "$RISK_LEVEL"
 }
 show_recommendations() {
-echo
-echo "[+] Security Recommendations:"
-if ! systemctl is-active --quiet ufw; then
-echo "[HIGH] Firewall is inactive"
-echo "Recommendation: Enable UFW firewall"
-echo "Command: sudo ufw enable"
-fi
-if ! sudo sshd -T | grep -q "passwordauthentication no"; then
-echo "[MEDIUM] SSH password Authentication is enabled"
-echo "Recommendation: Disable password login"
-echo "Edit: /etc/ssh/sshd_config"
-fi
-if ! sudo sshd -T | grep -Eq "permitrootlogin (no|without-password)"; then
-echo "[HIGH] Root SSH Login is allowed"
-echo "Recommendation: Disable root login"
-echo "Edit: /etc/ssh/sshd_config"
-fi
+    echo
+    echo "[+] Security Recommendations:"
+
+    if ! systemctl is-active --quiet ufw; then
+        echo "[HIGH] Firewall is inactive"
+        echo "Recommendation: Enable UFW firewall"
+        echo "Command: sudo ufw enable"
+    fi
+
+    for finding in "${FINDINGS[@]}"; do
+        case "$finding" in
+            *"SSH password authentication enabled"*)
+                echo "[MEDIUM] SSH password authentication is enabled"
+                echo "Recommendation: Disable password login"
+                echo "Edit: /etc/ssh/sshd_config"
+                ;;
+            *"SSH root login enabled"*)
+                echo "[HIGH] SSH root login is enabled"
+                echo "Recommendation: Disable root login"
+                echo "Edit: /etc/ssh/sshd_config"
+                ;;
+            *"SSH configuration could not be evaluated"*)
+                echo "[HIGH] SSH configuration could not be evaluated"
+                echo "Recommendation: Check SSH server configuration"
+                echo "Command: sshd -t"
+                ;;
+        esac
+    done
 }
-
-
 generate_html_report(){
 
 SCORE=$(cat /tmp/security_score)
@@ -146,10 +158,10 @@ show_recommendations
 generate_html_report
 
 echo
-echo -e "${BLUE}Finished${NC}"
+echo "Finished"
 
 
- 
+
 
 
 
