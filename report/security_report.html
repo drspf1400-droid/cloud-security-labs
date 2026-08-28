@@ -1,26 +1,91 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Linux Security Checker Pro Report</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    margin: 40px;
+    background: #f4f6f8;
+    color: #222;
+}
+
+.container {
+    max-width: 1000px;
+    margin: auto;
+    background: white;
+    padding: 35px;
+    border-radius: 12px;
+}
+
+h1 {
+    margin-bottom: 5px;
+}
+
+h2 {
+    margin-top: 30px;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 8px;
+}
+
+.score {
+    font-size: 42px;
+    font-weight: bold;
+}
+
+.risk {
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.finding,
+.recommendation {
+    padding: 12px;
+    margin: 8px 0;
+    background: #f7f7f7;
+    border-radius: 6px;
+}
+
+.meta {
+    color: #555;
+}
+</style>
+</head>
+
 <body>
+<div class="container">
 
-<h1>Linux Security Checker Pro Report</h1>
+<h1>Linux Security Checker Pro</h1>
+<p class="meta">Automated Linux Security Audit Report</p>
 
-<h2>System</h2>
-<p>Hostname: Ubuntu-Server</p>
-<p>Kernel: 5.15.0-187-generic</p>
+<h2>System Information</h2>
+<p>Hostname: DESKTOP-N9MRBMM</p>
+<p>Kernel: 6.18.33.2-microsoft-standard-WSL2</p>
 <p>OS: Ubuntu 22.04.5 LTS</p>
+<p>Audit Time: Fri Aug 28 11:41:39 +0330 2026</p>
 
 <h2>Security Score</h2>
-<p>Score: 70/100</p>
+<div class="score">100/100</div>
 
 <h2>Risk Level</h2>
-<p>MEDIUM</p>
+<div class="risk">LOW</div>
 
-<h2>Status</h2>
+<h2>Audit Status</h2>
 <p>Security checks completed successfully.</p>
 
 <h2>Security Findings</h2>
+<div class="finding">HIGH | SSH configuration could not be evaluated | Check sshd_config</div>
+<div class="finding">LOW | Update check unavailable | Package repository check failed or timed out | Check network/repositories</div>
 
-<p>- MEDIIUM | SSH password Authentication Enable | Disable password login | / etc/ssh/sshd_config</p>
-<p>- HIGH | SSH Root Login Enabled | Disable direct root login | / etc/ssh/sshd_config</p>
+<h2>Security Recommendations</h2>
+<div class="recommendation"><b>Update Check:</b> Verify package repository and network connectivity.</div>
 
+<h2>Audit Summary</h2>
+<p>Linux Security Checker Pro completed an automated security assessment of the target system.</p>
+
+</div>
 </body>
 </html>
