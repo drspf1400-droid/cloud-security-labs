@@ -17,5 +17,20 @@ jobs:
       - name: Build Docker image
         run: docker build -t linux-security-checker:ci .
 
-      - name: Run container (smoke test)
-        run: docker run --rm linux-security-checker:ci || true
+      - name: Run security checker
+        run: |
+          docker run --name security-ci linux-security-checker:ci > checker-output.txt 2>&1
+
+      - name: Validate checker output
+        run: |
+          grep -q "\[+] Security Score:" checker-output.txt
+          grep -q "\[+] Risk Level:" checker-output.txt
+          grep -q "\[+] HTML Report Created" checker-output.txt
+
+      - name: Show checker output
+        if: always()
+        run: cat checker-output.txt
+
+      - name: Cleanup
+        if: always()
+        run: docker rm -f security-ci || true
