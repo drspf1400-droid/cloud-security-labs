@@ -8,6 +8,8 @@ source modules/resource_check.sh
 source modules/ports_check.sh
 source modules/updates_check.sh
 source modules/services_check.sh
+source modules/aws_security_group_check.sh
+source modules/aws_iam_check.sh
 show_header() {
     echo -e "${BLUE}==================================${NC}"
     echo " Linux Security Checker Pro v1.1"
@@ -47,6 +49,20 @@ calculate_score() {
     PUBLIC_PORTS=$(printf '%s\n' "${FINDINGS[@]}" | grep -c "Publicly exposed port detected" || true)
     if [ "$PUBLIC_PORTS" -gt 0 ]; then
         score=$((score - 15))
+    fi
+    # AWS IAM full access
+    if printf '%s\n' "${FINDINGS[@]}" | grep -q "IAM policy has full access"; then
+        score=$((score - 25))
+    fi
+
+    # AWS SSH exposed
+    if printf '%s\n' "${FINDINGS[@]}" | grep -q "SSH exposed to internet"; then
+        score=$((score - 20))
+    fi
+
+    # AWS RDP exposed
+    if printf '%s\n' "${FINDINGS[@]}" | grep -q "RDP exposed to internet"; then
+        score=$((score - 20))
     fi
 
     # Package updates
@@ -127,6 +143,23 @@ show_recommendations() {
                 echo "Command: sshd -t"
                 ;;
 
+*"SSH exposed to internet"*)
+    echo "[HIGH] SSH is exposed to the internet"
+    echo "Recommendation: Restrict SSH access to trusted IP addresses"
+    echo "Action: Limit port 22 in the AWS Security Group"
+    ;;
+
+*"RDP exposed to internet"*)
+    echo "[HIGH] RDP is exposed to the internet"
+    echo "Recommendation: Restrict RDP access to trusted IP addresses"
+    echo "Action: Limit port 3389 in the AWS Security Group"
+    ;;
+
+*"IAM policy has full access"*)
+    echo "[HIGH] IAM policy has full access"
+    echo "Recommendation: Apply the principle of least privilege"
+    echo "Action: Restrict IAM actions and resources"
+    ;;
         esac
     done
 
@@ -256,7 +289,17 @@ EOF
             *"Update check unavailable"*)
                 echo '<div class="recommendation"><b>Update Check:</b> Verify package repository and network connectivity.</div>' >> report/security_report.html
                 ;;
+*"SSH exposed to internet"*)
+    echo '<div class="recommendation"><b>AWS SSH:</b> Restrict port 22 to trusted IP addresses in the Security Group.</div>' >> report/security_report.html
+    ;;
 
+*"RDP exposed to internet"*)
+    echo '<div class="recommendation"><b>AWS RDP:</b> Restrict port 3389 to trusted IP addresses in the Security Group.</div>' >> report/security_report.html
+    ;;
+
+*"IAM policy has full access"*)
+    echo '<div class="recommendation"><b>AWS IAM:</b> Apply least privilege and restrict IAM actions and resources.</div>' >> report/security_report.html
+    ;;
         esac
     done
 
@@ -282,6 +325,9 @@ check_firewall
 check_ports
 check_services
 check_updates
+check_aws_security_group
+check_aws_iamcheck_aws_security_group
+check_aws_iam
 calculate_score
 calculate_risk_level
 show_findings
