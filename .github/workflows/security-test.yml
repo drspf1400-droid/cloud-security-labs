@@ -1,0 +1,37 @@
+name: Security Checker Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  security-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t linux-security-checker:test .
+
+      - name: Run security checker
+        run: |
+          docker run --name security-test linux-security-checker:test > checker-output.txt 2>&1
+
+      - name: Validate security findings
+        run: |
+          grep -q "\[+] Security Findings:" checker-output.txt
+          grep -q "\[+] Security Recommendations:" checker-output.txt
+
+      - name: Show test output
+        if: always()
+        run: cat checker-output.txt
+
+      - name: Cleanup
+        if: always()
+        run: docker rm -f security-test || true
+
+
