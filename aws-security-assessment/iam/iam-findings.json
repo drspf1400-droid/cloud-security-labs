@@ -1,0 +1,10 @@
+[
+    {
+        "id": "IAM-001",
+        "title": "Excessive IAM Permissions",
+        "severity": "HIGH",
+        "category": "IAM / Least Privilege",
+        "risk": "Privilege escalation and unauthorized access",
+        "recommendation": "Apply the principle of least privilege"
+    }
+]

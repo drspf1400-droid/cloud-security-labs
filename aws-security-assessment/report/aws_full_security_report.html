@@ -1,0 +1,146 @@
+
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="UTF-8">
+
+<title>AWS Cloud Security Assessment</title>
+
+<style>
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 40px;
+    background: #f7f7f7;
+}
+
+.container {
+    max-width: 1200px;
+    margin: auto;
+    background: white;
+    padding: 40px;
+}
+
+h1 {
+    margin-bottom: 5px;
+}
+
+.summary {
+    display: flex;
+    gap: 60px;
+    margin: 30px 0;
+}
+
+.metric {
+    font-size: 36px;
+    font-weight: bold;
+}
+
+.label {
+    color: #666;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 30px;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 12px;
+    text-align: left;
+}
+
+th {
+    background: #eee;
+}
+
+footer {
+    margin-top: 40px;
+    color: #777;
+    font-size: 12px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>AWS Cloud Security Assessment</h1>
+
+<p>
+Generated: 2026-08-31 12:12:14
+</p>
+
+<div class="summary">
+
+<div>
+<div class="label">Security Score</div>
+<div class="metric">30/100</div>
+</div>
+
+<div>
+<div class="label">Risk Level</div>
+<div class="metric">CRITICAL</div>
+</div>
+
+<div>
+<div class="label">Total Findings</div>
+<div class="metric">2</div>
+</div>
+
+</div>
+
+<h2>Security Findings</h2>
+
+<table>
+
+<tr>
+<th>ID</th>
+<th>Finding</th>
+<th>Severity</th>
+<th>Category</th>
+<th>Risk</th>
+<th>Recommendation</th>
+</tr>
+
+
+        <tr>
+            <td>IAM-001</td>
+            <td>Excessive IAM Permissions</td>
+            <td>HIGH</td>
+            <td>IAM / Least Privilege</td>
+            <td>Privilege escalation and unauthorized access</td>
+            <td>Apply the principle of least privilege</td>
+        </tr>
+
+        <tr>
+            <td>S3-001</td>
+            <td>Public S3 Bucket</td>
+            <td>CRITICAL</td>
+            <td>S3 / Data Exposure</td>
+            <td>Unauthorized access to S3 objects</td>
+            <td>Enable Block Public Access and restrict bucket policies</td>
+        </tr>
+
+
+</table>
+
+<footer>
+
+AWS Cloud Security Assessment — Portfolio Lab
+
+</footer>
+
+</div>
+
+</body>
+
+</html>
