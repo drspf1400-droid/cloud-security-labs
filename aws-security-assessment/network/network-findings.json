@@ -1,0 +1,11 @@
+[
+    {
+        "id": "NET-001",
+        "title": "Open SSH to Internet",
+        "severity": "HIGH",
+        "category": "Network / Security Group",
+        "risk": "Unauthorized remote access",
+        "recommendation": "Restrict SSH access to trusted IP addresses or use a secure management path",
+        "security_group": "web-server-sg"
+    }
+]
