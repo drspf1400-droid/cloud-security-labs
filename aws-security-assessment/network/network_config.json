@@ -1,0 +1,44 @@
+{
+  "vpc": {
+    "cidr": "10.0.0.0/16"
+  },
+  "subnets": [
+    {
+      "name": "public-subnet",
+      "cidr": "10.0.1.0/24",
+      "type": "public"
+    },
+    {
+      "name": "private-subnet",
+      "cidr": "10.0.2.0/24",
+      "type": "private"
+    }
+  ],
+  "security_groups": [
+    {
+      "name": "web-server-sg",
+      "rules": [
+        {
+          "protocol": "tcp",
+          "port": 22,
+          "source": "0.0.0.0/0"
+        },
+        {
+          "protocol": "tcp",
+          "port": 80,
+          "source": "0.0.0.0/0"
+        }
+      ]
+    },
+    {
+      "name": "database-sg",
+      "rules": [
+        {
+          "protocol": "tcp",
+          "port": 3306,
+          "source": "10.0.1.0/24"
+        }
+      ]
+    }
+  ]
+}

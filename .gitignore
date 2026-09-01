@@ -1,1 +1,8 @@
 backups/
+
+__pycache__/
+*.pyc
+
+aws-security-assessment/iam/security_score.py.v1
+aws-security-assessment/security_assessment.py.bak
+aws-security-assessment/security_assessment.py.v1

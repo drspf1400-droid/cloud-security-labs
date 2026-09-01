@@ -6,13 +6,15 @@ import sys
 
 FINDINGS_FILES = [
     "aws-security-assessment/iam/iam-findings.json",
-    "aws-security-assessment/s3/s3-findings.json"
+    "aws-security-assessment/s3/s3-findings.json",
+
+"aws-security-assessment/network/network-findings.json",
 ]
 
 SEVERITY_PENALTY = {
     "CRITICAL": 40,
-    "HIGH": 30,
-    "MEDIUM": 15,
+    "HIGH": 25,
+    "MEDIUM": 10,
     "LOW": 5
 }
 
