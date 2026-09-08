@@ -13,9 +13,11 @@ RUN pip install --no-cache-dir --index-url "$PIP_INDEX_URL" -r requirements.txt 
 
 COPY app.py .
 
-RUN chown -R appuser:appuser /app
+RUN mkdir -p /tmp/prometheus_multiproc     && chown -R appuser:appuser /app /tmp/prometheus_multiproc
 
 USER appuser
+
+ENV PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus_multiproc
 
 EXPOSE 8000
 

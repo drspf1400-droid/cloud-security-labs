@@ -1,8 +1,47 @@
 import os
+import time
 import psycopg2
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
+from prometheus_client import Counter, Histogram, CollectorRegistry, multiprocess, generate_latest
+
 
 app = Flask(__name__)
+
+REQUEST_COUNT = Counter(
+    "http_requests_total",
+    "Total HTTP requests",
+    ["method", "endpoint", "status"],
+)
+
+REQUEST_LATENCY = Histogram(
+    "http_request_duration_seconds",
+    "HTTP request duration in seconds",
+    ["method", "endpoint"],
+)
+
+@app.before_request
+def start_request_timer():
+    request._prom_start_time = time.perf_counter()
+
+@app.after_request
+def record_request_metrics(response):
+    if request.path != "/metrics":
+        endpoint = request.endpoint or "unknown"
+
+        REQUEST_COUNT.labels(
+            method=request.method,
+            endpoint=endpoint,
+            status=response.status_code,
+        ).inc()
+
+        start_time = getattr(request, "_prom_start_time", None)
+        if start_time is not None:
+            REQUEST_LATENCY.labels(
+                method=request.method,
+                endpoint=endpoint,
+            ).observe(time.perf_counter() - start_time)
+
+    return response
 
 def get_db_connection():
     return psycopg2.connect(
@@ -54,7 +93,12 @@ def metrics():
     except Exception:
         database_up = 0
 
-    payload = (
+    registry = CollectorRegistry()
+    multiprocess.MultiProcessCollector(registry)
+
+    prometheus_metrics = generate_latest(registry).decode("utf-8")
+
+    custom_metrics = (
         "# HELP app_up Whether the application is running.\n"
         "# TYPE app_up gauge\n"
         "app_up 1\n"
@@ -63,6 +107,6 @@ def metrics():
         f"database_up {database_up}\n"
     )
 
-    return payload, 200, {
+    return custom_metrics + prometheus_metrics, 200, {
         "Content-Type": "text/plain; version=0.0.4; charset=utf-8"
     }
