@@ -43,3 +43,21 @@ jobs:
 
       - name: Build application image
         run: docker compose build app
+
+      - name: Runtime smoke test
+        run: |
+          docker compose -f compose.yaml -f compose.ci.yaml up -d db app
+
+          for i in {1..20}; do
+            if docker compose -f compose.yaml -f compose.ci.yaml exec -T app python -c 'import urllib.request; print(urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=2).read().decode())'; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          docker compose -f compose.yaml -f compose.ci.yaml logs app db
+          exit 1
+
+      - name: Stop test stack
+        if: always()
+        run: docker compose -f compose.yaml -f compose.ci.yaml down -v

@@ -1,0 +1,6 @@
+services:
+  app:
+    container_name: production-ci-app
+
+  db:
+    container_name: production-ci-db
