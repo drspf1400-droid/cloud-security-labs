@@ -44,18 +44,24 @@ jobs:
       - name: Build application image
         run: docker compose build app
 
-      - name: Runtime smoke test
+      - name: Generate CI TLS certificate
         run: |
-          docker compose -f compose.yaml -f compose.ci.yaml up -d db app
+          mkdir -p nginx/certs
+          openssl req -x509 -nodes -newkey rsa:2048             -keyout nginx/certs/lab.key             -out nginx/certs/lab.crt             -days 1             -subj "/CN=localhost"
+
+      - name: Runtime HTTPS smoke test
+        run: |
+          docker compose -f compose.yaml -f compose.ci.yaml up -d db app nginx
 
           for i in {1..20}; do
-            if docker compose -f compose.yaml -f compose.ci.yaml exec -T app python -c 'import urllib.request; print(urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=2).read().decode())'; then
+            if curl -kfsS https://127.0.0.1:8443/health | grep -q '"status":"healthy"'; then
+              echo "HTTPS runtime smoke test passed"
               exit 0
             fi
             sleep 2
           done
 
-          docker compose -f compose.yaml -f compose.ci.yaml logs app db
+          docker compose -f compose.yaml -f compose.ci.yaml logs nginx app db
           exit 1
 
       - name: Stop test stack
