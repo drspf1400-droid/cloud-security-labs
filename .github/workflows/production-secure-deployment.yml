@@ -1,0 +1,69 @@
+name: Production Secure Deployment CI
+
+on:
+  push:
+    branches:
+      - production-secure-deployment-lab
+    paths:
+      - "labs/production-secure-deployment-lab/**"
+      - ".github/workflows/production-secure-deployment.yml"
+
+  pull_request:
+    paths:
+      - "labs/production-secure-deployment-lab/**"
+      - ".github/workflows/production-secure-deployment.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    env:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: ci-test-password
+      GRAFANA_ADMIN_USER: admin
+      GRAFANA_ADMIN_PASSWORD: ci-test-password
+
+    defaults:
+      run:
+        working-directory: labs/production-secure-deployment-lab
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate Python syntax
+        run: python3 -m py_compile app/app.py
+
+      - name: Validate Docker Compose
+        run: docker compose config
+
+      - name: Validate Grafana dashboard JSON
+        run: python3 -m json.tool monitoring/grafana/dashboards/production-overview.json >/dev/null
+
+      - name: Build application image
+        run: docker compose build app
+
+      - name: Generate CI TLS certificate
+        run: |
+          mkdir -p nginx/certs
+          openssl req -x509 -nodes -newkey rsa:2048             -keyout nginx/certs/lab.key             -out nginx/certs/lab.crt             -days 1             -subj "/CN=localhost"
+
+      - name: Runtime HTTPS smoke test
+        run: |
+          docker compose -f compose.yaml -f compose.ci.yaml up -d db app nginx
+
+          for i in {1..20}; do
+            if curl -kfsS https://127.0.0.1:8443/health | grep -q '"status":"healthy"'; then
+              echo "HTTPS runtime smoke test passed"
+              exit 0
+            fi
+            sleep 2
+          done
+
+          docker compose -f compose.yaml -f compose.ci.yaml logs nginx app db
+          exit 1
+
+      - name: Stop test stack
+        if: always()
+        run: docker compose -f compose.yaml -f compose.ci.yaml down -v
