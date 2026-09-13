@@ -163,3 +163,7 @@ Linux, Docker, Docker Compose, Python, Flask, Gunicorn, PostgreSQL, Nginx, TLS/H
 ## Purpose
 
 This is an educational production-style DevOps and security portfolio project. It demonstrates practical deployment, network isolation, observability, database protection, backup validation, and CI runtime testing in one working environment.
+
+## Grafana Dashboard
+
+![Grafana Dashboard](docs/images/grafana-dashboard.png)
