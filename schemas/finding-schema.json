@@ -189,20 +189,155 @@
           "additionalProperties": false
         },
         "evidence": {
-          "type": "object",
-          "required": [
-            "type",
-            "source"
-          ],
-          "properties": {
-            "type": {
-              "type": "string"
+          "oneOf": [
+            {
+              "title": "Configuration Evidence",
+              "type": "object",
+              "required": [
+                "type",
+                "source",
+                "key",
+                "observed_value"
+              ],
+              "properties": {
+                "type": {
+                  "const": "configuration"
+                },
+                "source": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "key": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "observed_value": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "null"
+                  ]
+                }
+              },
+              "additionalProperties": false
             },
-            "source": {
-              "type": "string"
+            {
+              "title": "Command Output Evidence",
+              "type": "object",
+              "required": [
+                "type",
+                "source",
+                "key",
+                "observed_value"
+              ],
+              "properties": {
+                "type": {
+                  "const": "command_output"
+                },
+                "source": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "key": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "observed_value": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "null"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "title": "Socket Evidence",
+              "type": "object",
+              "required": [
+                "type",
+                "source",
+                "protocol",
+                "bind_address",
+                "port",
+                "internet_exposed"
+              ],
+              "properties": {
+                "type": {
+                  "const": "socket"
+                },
+                "source": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "protocol": {
+                  "type": "string",
+                  "enum": [
+                    "tcp",
+                    "udp"
+                  ]
+                },
+                "bind_address": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "port": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 65535
+                },
+                "process": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "internet_exposed": {
+                  "enum": [
+                    true,
+                    false,
+                    "unknown"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "title": "Package Inventory Evidence",
+              "type": "object",
+              "required": [
+                "type",
+                "source",
+                "package_manager",
+                "update_count",
+                "security_updates_confirmed"
+              ],
+              "properties": {
+                "type": {
+                  "const": "package_inventory"
+                },
+                "source": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "package_manager": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "update_count": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "security_updates_confirmed": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
             }
-          },
-          "additionalProperties": true
+          ]
         },
         "classification": {
           "type": "object",
