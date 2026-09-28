@@ -187,3 +187,85 @@ with open(output_file, "a", encoding="utf-8") as f:
     f.write(json.dumps(finding, separators=(",", ":")) + "\n")
 PY
 }
+
+add_socket_finding() {
+    local finding_id="$1"
+    local category="$2"
+    local title="$3"
+    local severity="$4"
+    local source_module="$5"
+    local protocol="$6"
+    local bind_address="$7"
+    local port="$8"
+    local process="$9"
+    local recommendation="${10}"
+
+    python3 - \
+        "$STRUCTURED_FINDINGS_FILE" \
+        "$finding_id" \
+        "$category" \
+        "$title" \
+        "$severity" \
+        "$source_module" \
+        "$protocol" \
+        "$bind_address" \
+        "$port" \
+        "$process" \
+        "$recommendation" <<'PY'
+import json
+import sys
+
+(
+    output_file,
+    finding_id,
+    category,
+    title,
+    severity,
+    source_module,
+    protocol,
+    bind_address,
+    port,
+    process,
+    recommendation,
+) = sys.argv[1:]
+
+finding = {
+    "finding_id": finding_id,
+    "category": category,
+    "title": title,
+    "baseline_severity": severity.lower(),
+    "status": "open",
+    "source": {
+        "type": "linux_network_socket",
+        "module": source_module
+    },
+    "evidence": {
+        "type": "socket",
+        "source": "ss -lntupH",
+        "protocol": protocol.lower(),
+        "bind_address": bind_address,
+        "port": int(port),
+        "process": process if process else None,
+        "internet_exposed": "unknown"
+    },
+    "classification": {
+        "cve": None,
+        "cwe": None,
+        "cvss": None
+    },
+    "remediation": {
+        "recommendation": recommendation,
+        "approval_status": "pending",
+        "applied": False
+    },
+    "verification": {
+        "security": "not_tested",
+        "configuration": "not_tested",
+        "functionality": "not_tested"
+    }
+}
+
+with open(output_file, "a", encoding="utf-8") as f:
+    f.write(json.dumps(finding, separators=(",", ":")) + "\n")
+PY
+}
