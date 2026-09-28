@@ -24,7 +24,19 @@ check_updates(){
         echo "System is up to date"
     else
         echo "$UPDATES package update(s) available"
+
         add_finding "MEDIUM | Package updates available | $UPDATES update(s) detected | Run apt update && apt upgrade"
+
+        add_package_inventory_finding \
+            "UPD-001" \
+            "updates" \
+            "Package updates available" \
+            "MEDIUM" \
+            "updates_check" \
+            "apt" \
+            "$UPDATES" \
+            "false" \
+            "Install available package updates."
     fi
 
     echo

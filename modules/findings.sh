@@ -110,3 +110,80 @@ with open(output_file, "a", encoding="utf-8") as f:
     f.write(json.dumps(finding, separators=(",", ":")) + "\n")
 PY
 }
+
+add_package_inventory_finding() {
+    local finding_id="$1"
+    local category="$2"
+    local title="$3"
+    local severity="$4"
+    local source_module="$5"
+    local package_manager="$6"
+    local update_count="$7"
+    local security_updates_confirmed="$8"
+    local recommendation="$9"
+
+    python3 - \
+        "$STRUCTURED_FINDINGS_FILE" \
+        "$finding_id" \
+        "$category" \
+        "$title" \
+        "$severity" \
+        "$source_module" \
+        "$package_manager" \
+        "$update_count" \
+        "$security_updates_confirmed" \
+        "$recommendation" <<'PY'
+import json
+import sys
+
+(
+    output_file,
+    finding_id,
+    category,
+    title,
+    severity,
+    source_module,
+    package_manager,
+    update_count,
+    security_updates_confirmed,
+    recommendation,
+) = sys.argv[1:]
+
+finding = {
+    "finding_id": finding_id,
+    "category": category,
+    "title": title,
+    "baseline_severity": severity.lower(),
+    "status": "open",
+    "source": {
+        "type": "linux_package_inventory",
+        "module": source_module
+    },
+    "evidence": {
+        "type": "package_inventory",
+        "source": "apt list --upgradable",
+        "package_manager": package_manager,
+        "update_count": int(update_count),
+        "security_updates_confirmed": security_updates_confirmed.lower() == "true"
+    },
+    "classification": {
+        "cve": None,
+        "cwe": None,
+        "cvss": None
+    },
+    "remediation": {
+        "recommendation": recommendation,
+        "approval_status": "pending",
+        "applied": False
+    },
+    "verification": {
+        "security": "not_tested",
+        "configuration": "not_tested",
+        "functionality": "not_tested"
+    }
+}
+
+with open(output_file, "a", encoding="utf-8") as f:
+    f.write(json.dumps(finding, separators=(",", ":")) + "\n")
+PY
+}
