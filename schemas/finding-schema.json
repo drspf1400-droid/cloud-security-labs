@@ -19,7 +19,9 @@
       "type": "object",
       "required": [
         "assessment_id",
-        "scanner"
+        "scanner",
+        "score",
+        "risk_level"
       ],
       "properties": {
         "assessment_id": {
@@ -47,6 +49,21 @@
             }
           },
           "additionalProperties": false
+        },
+        "score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "risk_level": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "critical",
+            "unknown"
+          ]
         }
       },
       "additionalProperties": false
