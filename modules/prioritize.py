@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import copy
 import json
 import sys
 from pathlib import Path
@@ -12,6 +13,9 @@ SEVERITY_RANK = {
     "high": 4,
     "critical": 5,
 }
+
+ENGINE_NAME = "deterministic-baseline"
+ENGINE_VERSION = "1.0"
 
 
 def prioritize_finding(finding, asset):
@@ -36,57 +40,65 @@ def prioritize_finding(finding, asset):
         reasons.append("environment=production")
 
     return {
-        "finding_id": finding["finding_id"],
-        "baseline_severity": severity,
-        "priority_score": score,
-        "priority_reasons": reasons,
+        "score": score,
+        "reasons": reasons,
+        "engine": {
+            "name": ENGINE_NAME,
+            "version": ENGINE_VERSION
+        }
     }
+
+
+def prioritize_assessment(assessment):
+    result = copy.deepcopy(assessment)
+    asset = result["asset"]
+
+    for finding in result["findings"]:
+        finding["priority"] = prioritize_finding(
+            finding,
+            asset
+        )
+
+    result["findings"].sort(
+        key=lambda finding: (
+            finding["priority"]["score"],
+            SEVERITY_RANK[finding["baseline_severity"]],
+            finding["finding_id"],
+        ),
+        reverse=True,
+    )
+
+    return result
 
 
 def main():
     if len(sys.argv) != 3:
         raise SystemExit(
-            "Usage: prioritize.py INPUT_ASSESSMENT OUTPUT_FILE"
+            "Usage: prioritize.py INPUT_ASSESSMENT OUTPUT_ASSESSMENT"
         )
 
     input_path = Path(sys.argv[1])
     output_path = Path(sys.argv[2])
 
     assessment = json.loads(input_path.read_text())
-    asset = assessment["asset"]
-
-    priorities = [
-        prioritize_finding(finding, asset)
-        for finding in assessment["findings"]
-    ]
-
-    priorities.sort(
-        key=lambda item: (
-            item["priority_score"],
-            SEVERITY_RANK[item["baseline_severity"]],
-            item["finding_id"],
-        ),
-        reverse=True,
-    )
-
-    result = {
-        "engine": {
-            "name": "deterministic-baseline",
-            "version": "1.0",
-        },
-        "assessment_id": assessment["assessment"]["assessment_id"],
-        "priorities": priorities,
-    }
+    prioritized = prioritize_assessment(assessment)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(result, indent=2) + "\n")
+    output_path.write_text(
+        json.dumps(prioritized, indent=2) + "\n"
+    )
 
-    for item in priorities:
+    for finding in prioritized["findings"]:
+        priority = finding["priority"]
         print(
-            f"{item['finding_id']}: "
-            f"score={item['priority_score']} "
-            f"severity={item['baseline_severity']}"
+            f"{finding['finding_id']}: "
+            f"score={priority['score']} "
+            f"severity={finding['baseline_severity']}"
         )
+
+    print(
+        f"PRIORITIZED ASSESSMENT CREATED: {output_path}"
+    )
 
 
 if __name__ == "__main__":
