@@ -317,6 +317,7 @@ EOF
 }
 
 show_header
+init_structured_findings
 check_system
 check_resources
 check_internet
@@ -326,7 +327,7 @@ check_ports
 check_services
 check_updates
 check_aws_security_group
-check_aws_iamcheck_aws_security_group
+
 check_aws_iam
 calculate_score
 calculate_risk_level

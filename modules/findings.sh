@@ -1,19 +1,112 @@
+# Structured findings pipeline
+
 #!/bin/bash
+
+# Legacy findings pipeline
 FINDINGS=()
+
 add_finding() {
     FINDINGS+=("$1")
 }
-show_findings(){
+
+show_findings() {
     echo
     echo "[+] Security Findings:"
+
     if [ ${#FINDINGS[@]} -eq 0 ]; then
         echo " NO findings detected"
         return
-     fi
-     for finding in "${FINDINGS[@]}"; do
-        echo  "- $finding"
-     done
+    fi
 
+    for finding in "${FINDINGS[@]}"; do
+        echo "- $finding"
+    done
+}
+STRUCTURED_FINDINGS_FILE="${STRUCTURED_FINDINGS_FILE:-report/structured-findings.jsonl}"
+
+init_structured_findings() {
+    mkdir -p "$(dirname "$STRUCTURED_FINDINGS_FILE")"
+    : > "$STRUCTURED_FINDINGS_FILE"
 }
 
+add_structured_finding() {
+    local finding_id="$1"
+    local category="$2"
+    local title="$3"
+    local severity="$4"
+    local source_type="$5"
+    local source_module="$6"
+    local evidence_type="$7"
+    local evidence_source="$8"
+    local evidence_key="$9"
+    local observed_value="${10}"
+    local recommendation="${11}"
 
+    python3 - \
+        "$STRUCTURED_FINDINGS_FILE" \
+        "$finding_id" \
+        "$category" \
+        "$title" \
+        "$severity" \
+        "$source_type" \
+        "$source_module" \
+        "$evidence_type" \
+        "$evidence_source" \
+        "$evidence_key" \
+        "$observed_value" \
+        "$recommendation" <<'PY'
+import json
+import sys
+
+(
+    output_file,
+    finding_id,
+    category,
+    title,
+    severity,
+    source_type,
+    source_module,
+    evidence_type,
+    evidence_source,
+    evidence_key,
+    observed_value,
+    recommendation,
+) = sys.argv[1:]
+
+finding = {
+    "finding_id": finding_id,
+    "category": category,
+    "title": title,
+    "baseline_severity": severity.lower(),
+    "status": "open",
+    "source": {
+        "type": source_type,
+        "module": source_module
+    },
+    "evidence": {
+        "type": evidence_type,
+        "source": evidence_source,
+        "key": evidence_key,
+        "observed_value": observed_value
+    },
+    "classification": {
+        "cve": None,
+        "cwe": None,
+        "cvss": None
+    },
+    "remediation": {
+        "recommendation": recommendation,
+        "approval_status": "pending",
+        "applied": False
+    },
+    "verification": {
+        "security": "not_tested",
+        "configuration": "not_tested",
+        "functionality": "not_tested"
+    }
+}
+
+with open(output_file, "a", encoding="utf-8") as f:
+    f.write(json.dumps(finding, separators=(",", ":")) + "\n")
+PY
+}
