@@ -41,8 +41,9 @@ jobs:
       - name: Install Python test dependencies
         run: python3 -m pip install jsonschema pytest
 
-      - name: Test deterministic prioritization baseline
-        run: python3 -m pytest -q tests/test_prioritization.py
+      - name: Run Python security pipeline tests
+        run: |
+          python3 -m pytest -q             tests/test_prioritization.py             tests/test_review.py
 
       - name: Validate structured findings against schema
         run: |

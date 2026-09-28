@@ -487,6 +487,113 @@
             }
           },
           "additionalProperties": false
+        },
+        "human_review": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "required": [
+            "reviewer",
+            "decision",
+            "reviewed_at",
+            "note"
+          ],
+          "properties": {
+            "reviewer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "decision": {
+              "type": "string",
+              "enum": [
+                "approved",
+                "rejected",
+                "modified",
+                "accepted_risk",
+                "false_positive"
+              ]
+            },
+            "reviewed_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "note": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "audit_trail": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "timestamp",
+              "actor",
+              "action",
+              "from_status",
+              "to_status"
+            ],
+            "properties": {
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "actor": {
+                "type": "string",
+                "minLength": 1
+              },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "review_started",
+                  "approved",
+                  "rejected",
+                  "modified",
+                  "remediation_applied",
+                  "verification_passed",
+                  "verification_failed",
+                  "risk_accepted",
+                  "marked_false_positive"
+                ]
+              },
+              "from_status": {
+                "type": "string",
+                "enum": [
+                  "open",
+                  "under_review",
+                  "approved",
+                  "remediated",
+                  "verified",
+                  "accepted",
+                  "false_positive"
+                ]
+              },
+              "to_status": {
+                "type": "string",
+                "enum": [
+                  "open",
+                  "under_review",
+                  "approved",
+                  "remediated",
+                  "verified",
+                  "accepted",
+                  "false_positive"
+                ]
+              },
+              "note": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
         }
       },
       "additionalProperties": false
