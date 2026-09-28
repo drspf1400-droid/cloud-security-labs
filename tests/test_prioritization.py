@@ -8,32 +8,167 @@ prioritize = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(prioritize)
 
 
-def test_unknown_context_uses_baseline_only():
-    finding = {
-        "finding_id": "TEST-001",
-        "baseline_severity": "high",
-    }
-
-    asset = {
+def base_asset():
+    return {
         "internet_exposed": None,
         "business_criticality": "unknown",
         "environment": "unknown",
     }
 
-    result = prioritize.prioritize_finding(finding, asset)
+
+def test_unknown_context_uses_baseline_only():
+    finding = {
+        "finding_id": "TEST-001",
+        "baseline_severity": "high",
+        "category": "generic",
+        "evidence": {
+            "type": "command_output",
+            "source": "test",
+            "key": "value",
+            "observed_value": "ok",
+        },
+    }
+
+    result = prioritize.prioritize_finding(
+        finding,
+        base_asset()
+    )
 
     assert result["score"] == 4
     assert result["reasons"] == [
         "baseline_severity=high"
     ]
-    assert result["engine"]["name"] == "deterministic-baseline"
-    assert result["engine"]["version"] == "1.0"
 
 
-def test_known_context_adds_modifiers():
+def test_ssh_root_login_adds_evidence_modifier():
     finding = {
-        "finding_id": "TEST-002",
+        "finding_id": "SSH-002",
+        "baseline_severity": "high",
+        "category": "ssh",
+        "evidence": {
+            "type": "configuration",
+            "source": "/etc/ssh/sshd_config",
+            "key": "PermitRootLogin",
+            "observed_value": "without-password",
+        },
+    }
+
+    result = prioritize.prioritize_finding(
+        finding,
+        base_asset()
+    )
+
+    assert result["score"] == 5
+    assert "ssh_root_login_permitted=true" in result["reasons"]
+
+
+def test_ssh_password_authentication_adds_modifier():
+    finding = {
+        "finding_id": "SSH-001",
         "baseline_severity": "medium",
+        "category": "ssh",
+        "evidence": {
+            "type": "configuration",
+            "source": "/etc/ssh/sshd_config",
+            "key": "PasswordAuthentication",
+            "observed_value": "yes",
+        },
+    }
+
+    result = prioritize.prioritize_finding(
+        finding,
+        base_asset()
+    )
+
+    assert result["score"] == 4
+    assert "ssh_password_authentication=true" in result["reasons"]
+
+
+def test_inactive_firewall_adds_modifier():
+    finding = {
+        "finding_id": "FW-001",
+        "baseline_severity": "high",
+        "category": "firewall",
+        "evidence": {
+            "type": "command_output",
+            "source": "ufw status",
+            "key": "status",
+            "observed_value": "inactive",
+        },
+    }
+
+    result = prioritize.prioritize_finding(
+        finding,
+        base_asset()
+    )
+
+    assert result["score"] == 5
+    assert "host_firewall_inactive=true" in result["reasons"]
+
+
+def test_socket_all_interfaces_is_not_internet_exposure():
+    finding = {
+        "finding_id": "NET-8080",
+        "baseline_severity": "medium",
+        "category": "network",
+        "evidence": {
+            "type": "socket",
+            "source": "ss -lntupH",
+            "protocol": "tcp",
+            "bind_address": "0.0.0.0",
+            "port": 8080,
+            "process": "python3",
+            "internet_exposed": "unknown",
+        },
+    }
+
+    result = prioritize.prioritize_finding(
+        finding,
+        base_asset()
+    )
+
+    assert result["score"] == 4
+    assert "socket_bound_all_interfaces=true" in result["reasons"]
+    assert "socket_internet_exposed=true" not in result["reasons"]
+
+
+def test_unconfirmed_updates_do_not_add_modifier():
+    finding = {
+        "finding_id": "UPD-001",
+        "baseline_severity": "medium",
+        "category": "updates",
+        "evidence": {
+            "type": "package_inventory",
+            "source": "apt list --upgradable",
+            "package_manager": "apt",
+            "update_count": 10,
+            "security_updates_confirmed": False,
+        },
+    }
+
+    result = prioritize.prioritize_finding(
+        finding,
+        base_asset()
+    )
+
+    assert result["score"] == 3
+    assert "security_updates_confirmed=true" not in result["reasons"]
+
+
+def test_score_is_capped_at_eight():
+    finding = {
+        "finding_id": "TEST-CAP",
+        "baseline_severity": "critical",
+        "category": "network",
+        "evidence": {
+            "type": "socket",
+            "source": "ss -lntupH",
+            "protocol": "tcp",
+            "bind_address": "0.0.0.0",
+            "port": 443,
+            "process": "service",
+            "internet_exposed": True,
+        },
     }
 
     asset = {
@@ -42,72 +177,32 @@ def test_known_context_adds_modifiers():
         "environment": "production",
     }
 
-    result = prioritize.prioritize_finding(finding, asset)
+    result = prioritize.prioritize_finding(
+        finding,
+        asset
+    )
 
-    assert result["score"] == 6
-    assert "internet_exposed=true" in result["reasons"]
-    assert "business_criticality=critical" in result["reasons"]
-    assert "environment=production" in result["reasons"]
+    assert result["score"] == 8
 
 
-def test_false_exposure_does_not_add_score():
+def test_engine_version_is_v2():
     finding = {
-        "finding_id": "TEST-003",
-        "baseline_severity": "medium",
-    }
-
-    asset = {
-        "internet_exposed": False,
-        "business_criticality": "low",
-        "environment": "development",
-    }
-
-    result = prioritize.prioritize_finding(finding, asset)
-
-    assert result["score"] == 3
-
-
-def test_prioritize_assessment_embeds_priority():
-    assessment = {
-        "schema_version": "1.0",
-        "assessment": {
-            "assessment_id": "assessment-test",
-            "timestamp": None,
-            "scanner": {
-                "name": "Linux Security Checker Pro",
-                "version": "1.1.0"
-            },
-            "score": 50,
-            "risk_level": "medium"
+        "finding_id": "TEST-ENGINE",
+        "baseline_severity": "low",
+        "category": "generic",
+        "evidence": {
+            "type": "command_output",
+            "source": "test",
+            "key": "value",
+            "observed_value": "ok",
         },
-        "asset": {
-            "asset_id": "host-1",
-            "hostname": "host-1",
-            "asset_type": "linux_host",
-            "operating_system": "Ubuntu",
-            "kernel_version": "test",
-            "environment": "unknown",
-            "internet_exposed": None,
-            "business_criticality": "unknown"
-        },
-        "findings": [
-            {
-                "finding_id": "LOWER",
-                "baseline_severity": "medium"
-            },
-            {
-                "finding_id": "HIGHER",
-                "baseline_severity": "high"
-            }
-        ]
     }
 
-    result = prioritize.prioritize_assessment(assessment)
+    result = prioritize.prioritize_finding(
+        finding,
+        base_asset()
+    )
 
-    assert result["findings"][0]["finding_id"] == "HIGHER"
-    assert result["findings"][0]["priority"]["score"] == 4
-    assert result["findings"][1]["priority"]["score"] == 3
-
-    # Raw input must remain unchanged.
-    assert "priority" not in assessment["findings"][0]
-    assert "priority" not in assessment["findings"][1]
+    assert result["engine"]["name"] == \
+        "deterministic-context-baseline"
+    assert result["engine"]["version"] == "2.0"

@@ -14,8 +14,72 @@ SEVERITY_RANK = {
     "critical": 5,
 }
 
-ENGINE_NAME = "deterministic-baseline"
-ENGINE_VERSION = "1.0"
+ENGINE_NAME = "deterministic-context-baseline"
+ENGINE_VERSION = "2.0"
+MAX_PRIORITY_SCORE = 8
+
+
+def evidence_modifiers(finding):
+    evidence = finding.get("evidence", {})
+    modifiers = []
+
+    # Network socket bound to all interfaces.
+    # This does NOT prove Internet exposure.
+    if evidence.get("type") == "socket":
+        bind_address = evidence.get("bind_address")
+
+        if bind_address in {"0.0.0.0", "::"}:
+            modifiers.append(
+                ("socket_bound_all_interfaces=true", 1)
+            )
+
+        if evidence.get("internet_exposed") is True:
+            modifiers.append(
+                ("socket_internet_exposed=true", 1)
+            )
+
+    # SSH configuration evidence.
+    if evidence.get("type") == "configuration":
+        key = evidence.get("key")
+        value = str(evidence.get("observed_value", "")).lower()
+
+        if (
+            key == "PermitRootLogin"
+            and value in {"yes", "without-password", "prohibit-password"}
+        ):
+            modifiers.append(
+                ("ssh_root_login_permitted=true", 1)
+            )
+
+        if (
+            key == "PasswordAuthentication"
+            and value == "yes"
+        ):
+            modifiers.append(
+                ("ssh_password_authentication=true", 1)
+            )
+
+    # Firewall status evidence.
+    if (
+        finding.get("category") == "firewall"
+        and evidence.get("type") == "command_output"
+        and evidence.get("key") == "status"
+        and str(evidence.get("observed_value", "")).lower() == "inactive"
+    ):
+        modifiers.append(
+            ("host_firewall_inactive=true", 1)
+        )
+
+    # Update evidence: only increase when security relevance is explicit.
+    if (
+        evidence.get("type") == "package_inventory"
+        and evidence.get("security_updates_confirmed") is True
+    ):
+        modifiers.append(
+            ("security_updates_confirmed=true", 1)
+        )
+
+    return modifiers
 
 
 def prioritize_finding(finding, asset):
@@ -26,18 +90,28 @@ def prioritize_finding(finding, asset):
         f"baseline_severity={severity}"
     ]
 
+    # Asset-level context.
     if asset.get("internet_exposed") is True:
         score += 1
-        reasons.append("internet_exposed=true")
+        reasons.append("asset_internet_exposed=true")
 
     criticality = asset.get("business_criticality")
     if criticality in {"high", "critical"}:
         score += 1
-        reasons.append(f"business_criticality={criticality}")
+        reasons.append(
+            f"business_criticality={criticality}"
+        )
 
     if asset.get("environment") == "production":
         score += 1
         reasons.append("environment=production")
+
+    # Finding-level evidence.
+    for reason, modifier in evidence_modifiers(finding):
+        score += modifier
+        reasons.append(reason)
+
+    score = min(score, MAX_PRIORITY_SCORE)
 
     return {
         "score": score,
@@ -93,7 +167,8 @@ def main():
         print(
             f"{finding['finding_id']}: "
             f"score={priority['score']} "
-            f"severity={finding['baseline_severity']}"
+            f"severity={finding['baseline_severity']} "
+            f"reasons={','.join(priority['reasons'])}"
         )
 
     print(
