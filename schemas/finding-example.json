@@ -1,0 +1,150 @@
+{
+  "schema_version": "1.0",
+  "assessment": {
+    "assessment_id": "ASM-EXAMPLE-001",
+    "scanner": {
+      "name": "linux-security-checker",
+      "version": "15"
+    }
+  },
+  "asset": {
+    "asset_id": "LAB-SRV-001",
+    "hostname": "ubuntu-lab",
+    "asset_type": "linux_server",
+    "environment": "lab"
+  },
+  "findings": [
+    {
+      "finding_id": "SSH-001",
+      "category": "ssh",
+      "title": "SSH root login enabled",
+      "baseline_severity": "high",
+      "status": "open",
+      "source": {
+        "type": "linux_configuration",
+        "module": "ssh_check"
+      },
+      "evidence": {
+        "type": "configuration",
+        "source": "/etc/ssh/sshd_config",
+        "key": "PermitRootLogin",
+        "observed_value": "yes"
+      },
+      "classification": {
+        "cve": null,
+        "cwe": null,
+        "cvss": null
+      },
+      "remediation": {
+        "recommendation": "Disable direct SSH root login.",
+        "approval_status": "pending",
+        "applied": false
+      },
+      "verification": {
+        "security": "not_tested",
+        "configuration": "not_tested",
+        "functionality": "not_tested"
+      }
+    },
+    {
+      "finding_id": "FW-001",
+      "category": "firewall",
+      "title": "Host firewall is inactive",
+      "baseline_severity": "high",
+      "status": "open",
+      "source": {
+        "type": "linux_configuration",
+        "module": "firewall_check"
+      },
+      "evidence": {
+        "type": "command_output",
+        "source": "ufw status",
+        "key": "status",
+        "observed_value": "inactive"
+      },
+      "classification": {
+        "cve": null,
+        "cwe": null,
+        "cvss": null
+      },
+      "remediation": {
+        "recommendation": "Enable and configure the host firewall according to the required network policy.",
+        "approval_status": "pending",
+        "applied": false
+      },
+      "verification": {
+        "security": "not_tested",
+        "configuration": "not_tested",
+        "functionality": "not_tested"
+      }
+    },
+    {
+      "finding_id": "NET-001",
+      "category": "network",
+      "title": "Service listening on all network interfaces",
+      "baseline_severity": "medium",
+      "status": "open",
+      "source": {
+        "type": "network_socket",
+        "module": "ports_check"
+      },
+      "evidence": {
+        "type": "socket",
+        "source": "ss -lntup",
+        "protocol": "tcp",
+        "bind_address": "0.0.0.0",
+        "port": 8080,
+        "process": null,
+        "internet_exposed": "unknown"
+      },
+      "classification": {
+        "cve": null,
+        "cwe": null,
+        "cvss": null
+      },
+      "remediation": {
+        "recommendation": "Review whether the service needs to listen on all network interfaces and restrict network access where appropriate.",
+        "approval_status": "pending",
+        "applied": false
+      },
+      "verification": {
+        "security": "not_tested",
+        "configuration": "not_tested",
+        "functionality": "not_tested"
+      }
+    },
+    {
+      "finding_id": "UPD-001",
+      "category": "updates",
+      "title": "Package updates available",
+      "baseline_severity": "medium",
+      "status": "open",
+      "source": {
+        "type": "package_manager",
+        "module": "updates_check"
+      },
+      "evidence": {
+        "type": "package_inventory",
+        "source": "apt list --upgradable",
+        "package_manager": "apt",
+        "update_count": 5,
+        "security_updates_confirmed": false
+      },
+      "classification": {
+        "cve": null,
+        "cwe": null,
+        "cvss": null
+      },
+      "remediation": {
+        "recommendation": "Review available package updates, identify security-relevant updates, test them, and apply approved updates.",
+        "approval_status": "pending",
+        "applied": false
+      },
+      "verification": {
+        "security": "not_tested",
+        "configuration": "not_tested",
+        "functionality": "not_tested"
+      }
+    }
+  ]
+}

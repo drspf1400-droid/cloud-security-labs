@@ -1,0 +1,301 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finding-schema-v1.json",
+  "title": "Linux Security Checker Finding Schema",
+  "description": "Structured security assessment data contract.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "assessment",
+    "asset",
+    "findings"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "assessment": {
+      "type": "object",
+      "required": [
+        "assessment_id",
+        "scanner"
+      ],
+      "properties": {
+        "assessment_id": {
+          "type": "string"
+        },
+        "timestamp": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "scanner": {
+          "type": "object",
+          "required": [
+            "name",
+            "version"
+          ],
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "asset": {
+      "type": "object",
+      "required": [
+        "asset_id",
+        "hostname",
+        "asset_type",
+        "environment"
+      ],
+      "properties": {
+        "asset_id": {
+          "type": "string"
+        },
+        "hostname": {
+          "type": "string"
+        },
+        "asset_type": {
+          "type": "string"
+        },
+        "operating_system": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kernel_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "environment": {
+          "type": "string",
+          "enum": [
+            "lab",
+            "development",
+            "test",
+            "staging",
+            "production",
+            "unknown"
+          ]
+        },
+        "internet_exposed": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "business_criticality": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "critical",
+            "unknown",
+            null
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
+    }
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "required": [
+        "finding_id",
+        "category",
+        "title",
+        "baseline_severity",
+        "status",
+        "source",
+        "evidence",
+        "classification",
+        "remediation",
+        "verification"
+      ],
+      "properties": {
+        "finding_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "baseline_severity": {
+          "type": "string",
+          "enum": [
+            "info",
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "open",
+            "under_review",
+            "approved",
+            "remediated",
+            "verified",
+            "accepted",
+            "false_positive"
+          ]
+        },
+        "source": {
+          "type": "object",
+          "required": [
+            "type",
+            "module"
+          ],
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "module": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "evidence": {
+          "type": "object",
+          "required": [
+            "type",
+            "source"
+          ],
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "source": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "classification": {
+          "type": "object",
+          "required": [
+            "cve",
+            "cwe",
+            "cvss"
+          ],
+          "properties": {
+            "cve": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "cwe": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "cvss": {
+              "type": [
+                "object",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "remediation": {
+          "type": "object",
+          "required": [
+            "recommendation",
+            "approval_status",
+            "applied"
+          ],
+          "properties": {
+            "recommendation": {
+              "type": "string"
+            },
+            "approval_status": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "approved",
+                "rejected",
+                "modified"
+              ]
+            },
+            "applied": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "verification": {
+          "type": "object",
+          "required": [
+            "security",
+            "configuration",
+            "functionality"
+          ],
+          "properties": {
+            "security": {
+              "type": "string",
+              "enum": [
+                "not_tested",
+                "pass",
+                "fail"
+              ]
+            },
+            "configuration": {
+              "type": "string",
+              "enum": [
+                "not_tested",
+                "pass",
+                "fail"
+              ]
+            },
+            "functionality": {
+              "type": "string",
+              "enum": [
+                "not_tested",
+                "pass",
+                "fail"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
