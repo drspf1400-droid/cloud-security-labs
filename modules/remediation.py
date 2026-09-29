@@ -286,6 +286,163 @@ def apply_ssh_root_login_remediation(
     return finding
 
 
+
+def safe_apply_ssh_root_login_remediation(
+    finding,
+    config_path,
+    actor,
+    note=None,
+    timestamp=None,
+):
+    """
+    Apply SSH remediation with automatic rollback if
+    post-remediation verification fails.
+    """
+    ensure_remediation_approved(finding)
+
+    if finding["finding_id"] != "SSH-002":
+        raise ValueError(
+            "This remediation implementation only supports SSH-002"
+        )
+
+    path = Path(config_path)
+
+    if not path.exists():
+        raise ValueError(f"SSH config not found: {path}")
+
+    original_content = path.read_text()
+    previous_status = finding["status"]
+    ts = timestamp or utc_now()
+
+    plan = build_remediation_plan(finding)
+    plan["mode"] = "apply"
+
+    remediation = finding.setdefault("remediation", {})
+    finding.setdefault("audit_trail", [])
+
+    # Apply controlled remediation.
+    set_sshd_directive(
+        path,
+        "PermitRootLogin",
+        "no",
+    )
+
+    remediation["plan"] = plan
+    remediation["last_mode"] = "apply"
+    remediation["last_attempt_at"] = ts
+    remediation["applied"] = True
+    remediation["applied_at"] = ts
+    remediation["rollback_performed"] = False
+    remediation["rollback_verified"] = False
+
+    finding["audit_trail"].append({
+        "timestamp": ts,
+        "actor": actor,
+        "action": "remediation_applied",
+        "from_status": previous_status,
+        "to_status": previous_status,
+        "mode": "apply",
+        "remediation_action": plan["action"],
+        "applied": True,
+        "note": note,
+    })
+
+    verified = verify_ssh_root_login_disabled(path)
+
+    remediation["verified"] = verified
+    remediation["verified_at"] = ts
+
+    if verified:
+        finding["status"] = "remediated"
+
+        finding["audit_trail"].append({
+            "timestamp": ts,
+            "actor": actor,
+            "action": "verification_passed",
+            "from_status": previous_status,
+            "to_status": "remediated",
+            "mode": "verification",
+            "remediation_action": plan["action"],
+            "applied": True,
+            "note": "PermitRootLogin verified as disabled.",
+        })
+
+        return finding
+
+    # Verification failed: start rollback.
+    finding["audit_trail"].append({
+        "timestamp": ts,
+        "actor": actor,
+        "action": "verification_failed",
+        "from_status": previous_status,
+        "to_status": previous_status,
+        "mode": "verification",
+        "remediation_action": plan["action"],
+        "applied": True,
+        "note": "Post-remediation verification failed.",
+    })
+
+    finding["audit_trail"].append({
+        "timestamp": ts,
+        "actor": actor,
+        "action": "rollback_started",
+        "from_status": previous_status,
+        "to_status": previous_status,
+        "mode": "rollback",
+        "remediation_action": plan["action"],
+        "applied": True,
+        "note": "Restoring pre-remediation configuration.",
+    })
+
+    # Restore exact pre-remediation content.
+    path.write_text(original_content)
+
+    rollback_verified = (
+        path.read_text() == original_content
+    )
+
+    remediation["rollback_performed"] = True
+    remediation["rollback_verified"] = rollback_verified
+    remediation["rollback_at"] = ts
+    remediation["applied"] = False
+
+    # Finding remains approved because the security issue
+    # is unresolved after rollback.
+    finding["status"] = previous_status
+
+    if rollback_verified:
+        finding["audit_trail"].append({
+            "timestamp": ts,
+            "actor": actor,
+            "action": "rollback_completed",
+            "from_status": previous_status,
+            "to_status": previous_status,
+            "mode": "rollback",
+            "remediation_action": plan["action"],
+            "applied": False,
+            "note": "Original configuration restored and verified.",
+        })
+
+        raise RuntimeError(
+            "Remediation verification failed; rollback completed"
+        )
+
+    finding["audit_trail"].append({
+        "timestamp": ts,
+        "actor": actor,
+        "action": "rollback_failed",
+        "from_status": previous_status,
+        "to_status": previous_status,
+        "mode": "rollback",
+        "remediation_action": plan["action"],
+        "applied": False,
+        "note": "Original configuration could not be verified after rollback.",
+    })
+
+    raise RuntimeError(
+        "CRITICAL: remediation verification failed and rollback verification failed"
+    )
+
 def main():
     parser = argparse.ArgumentParser(
         description=(
