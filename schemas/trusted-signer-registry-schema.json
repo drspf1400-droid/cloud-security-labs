@@ -1,0 +1,117 @@
+{
+  "type": "object",
+  "required": [
+    "registry_version",
+    "signers",
+    "audit_trail"
+  ],
+  "properties": {
+    "registry_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "signers": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-f0-9]{64}$": {
+          "type": "object",
+          "required": [
+            "signer_id",
+            "key_id",
+            "algorithm",
+            "public_key",
+            "status",
+            "registered_at",
+            "revoked_at",
+            "revocation_reason"
+          ],
+          "properties": {
+            "signer_id": {
+              "type": "string"
+            },
+            "key_id": {
+              "type": "string"
+            },
+            "algorithm": {
+              "type": "string",
+              "enum": ["ed25519"]
+            },
+            "public_key": {
+              "type": "string",
+              "minLength": 1
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "active",
+                "revoked"
+              ]
+            },
+            "registered_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "revoked_at": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            },
+            "revocation_reason": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "audit_trail": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "timestamp",
+          "action",
+          "signer_id",
+          "key_id",
+          "key_fingerprint",
+          "details"
+        ],
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "signer_key_registered",
+              "signer_key_revoked",
+              "signer_key_rotated"
+            ]
+          },
+          "signer_id": {
+            "type": "string"
+          },
+          "key_id": {
+            "type": "string"
+          },
+          "key_fingerprint": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "details": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
