@@ -17,21 +17,83 @@ jobs:
       - name: Build Docker image
         run: docker build -t linux-security-checker:test .
 
+      - name: Prepare report directory
+        run: mkdir -p ci-report
+
       - name: Run security checker
         run: |
-          docker run --name security-test linux-security-checker:test > checker-output.txt 2>&1
+          docker run \
+            --name security-test \
+            -v "$PWD/ci-report:/app/report" \
+            linux-security-checker:test \
+            > checker-output.txt 2>&1
 
-      - name: Validate security findings
+      - name: Validate legacy security output
         run: |
           grep -q "\[+] Security Findings:" checker-output.txt
           grep -q "\[+] Security Recommendations:" checker-output.txt
 
-      - name: Show test output
+      - name: Verify structured findings file
+        run: |
+          test -s ci-report/structured-findings.jsonl
+          echo "Structured findings file exists and is not empty"
+
+      - name: Install Python test dependencies
+        run: python3 -m pip install jsonschema pytest
+
+      - name: Run Python security pipeline tests
+        run: |
+          python3 -m pytest -q             tests/test_prioritization.py             tests/test_review.py
+
+      - name: Validate structured findings against schema
+        run: |
+          python3 - <<'PY'
+          import json
+          import pathlib
+          import jsonschema
+
+          schema_path = pathlib.Path("schemas/finding-schema.json")
+          findings_path = pathlib.Path("ci-report/structured-findings.jsonl")
+
+          schema = json.loads(schema_path.read_text())
+          finding_schema = schema["$defs"]["finding"]
+
+          count = 0
+
+          with findings_path.open() as f:
+              for line_number, line in enumerate(f, start=1):
+                  line = line.strip()
+                  if not line:
+                      continue
+
+                  finding = json.loads(line)
+                  jsonschema.validate(
+                      instance=finding,
+                      schema=finding_schema
+                  )
+
+                  print(
+                      f"VALID: {finding['finding_id']} "
+                      f"({finding['baseline_severity']})"
+                  )
+                  count += 1
+
+          if count == 0:
+              raise SystemExit("No structured findings were generated")
+
+          print(f"Validated {count} structured findings successfully")
+          PY
+
+      - name: Show checker output
         if: always()
         run: cat checker-output.txt
+
+      - name: Show structured findings
+        if: always()
+        run: |
+          echo "----- Structured Findings -----"
+          cat ci-report/structured-findings.jsonl || true
 
       - name: Cleanup
         if: always()
         run: docker rm -f security-test || true
-
-

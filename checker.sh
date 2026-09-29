@@ -10,6 +10,7 @@ source modules/updates_check.sh
 source modules/services_check.sh
 source modules/aws_security_group_check.sh
 source modules/aws_iam_check.sh
+source modules/assessment.sh
 show_header() {
     echo -e "${BLUE}==================================${NC}"
     echo " Linux Security Checker Pro v1.1"
@@ -317,6 +318,7 @@ EOF
 }
 
 show_header
+init_structured_findings
 check_system
 check_resources
 check_internet
@@ -326,10 +328,11 @@ check_ports
 check_services
 check_updates
 check_aws_security_group
-check_aws_iamcheck_aws_security_group
+
 check_aws_iam
 calculate_score
 calculate_risk_level
+generate_assessment_json
 show_findings
 show_recommendations
 generate_html_report
