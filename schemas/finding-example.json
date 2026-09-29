@@ -94,7 +94,7 @@
       ],
       "audit_trail": [
         {
-          "timestamp": "2026-09-29T07:48:24.701266+00:00",
+          "timestamp": "2026-09-29T08:00:39.767822+00:00",
           "actor": "example-runner",
           "finding_id": "SSH-001",
           "decision": "blocked",
@@ -103,7 +103,7 @@
           "reason": "No remediation policy exists for this finding."
         },
         {
-          "timestamp": "2026-09-29T07:48:24.701324+00:00",
+          "timestamp": "2026-09-29T08:00:39.767862+00:00",
           "actor": "example-runner",
           "finding_id": "FW-001",
           "decision": "blocked",
@@ -112,7 +112,7 @@
           "reason": "No remediation policy exists for this finding."
         },
         {
-          "timestamp": "2026-09-29T07:48:24.701332+00:00",
+          "timestamp": "2026-09-29T08:00:39.767871+00:00",
           "actor": "example-runner",
           "finding_id": "NET-001",
           "decision": "blocked",
@@ -121,7 +121,7 @@
           "reason": "No remediation policy exists for this finding."
         },
         {
-          "timestamp": "2026-09-29T07:48:24.701338+00:00",
+          "timestamp": "2026-09-29T08:00:39.767878+00:00",
           "actor": "example-runner",
           "finding_id": "UPD-001",
           "decision": "blocked",
@@ -130,6 +130,81 @@
           "reason": "No remediation policy exists for this finding."
         }
       ]
+    },
+    "execution_evidence": {
+      "manifest_version": "1.0",
+      "run_id": "RUN-EXAMPLE-001",
+      "created_at": "2026-09-29T10:00:00+00:00",
+      "actor": "example-runner",
+      "environment": "lab",
+      "summary": {
+        "executed": 0,
+        "dry_run": 0,
+        "blocked": 4,
+        "failed": 0
+      },
+      "evidence": [
+        {
+          "finding_id": "SSH-001",
+          "decision": "blocked",
+          "action": null,
+          "execution_status": "blocked",
+          "reason": "No remediation policy exists for this finding.",
+          "final_finding_status": "open",
+          "remediation_applied": false,
+          "verification_passed": false,
+          "verification_failed": false,
+          "rollback_performed": false,
+          "rollback_verified": false,
+          "finding_audit_events": []
+        },
+        {
+          "finding_id": "FW-001",
+          "decision": "blocked",
+          "action": null,
+          "execution_status": "blocked",
+          "reason": "No remediation policy exists for this finding.",
+          "final_finding_status": "open",
+          "remediation_applied": false,
+          "verification_passed": false,
+          "verification_failed": false,
+          "rollback_performed": false,
+          "rollback_verified": false,
+          "finding_audit_events": []
+        },
+        {
+          "finding_id": "NET-001",
+          "decision": "blocked",
+          "action": null,
+          "execution_status": "blocked",
+          "reason": "No remediation policy exists for this finding.",
+          "final_finding_status": "open",
+          "remediation_applied": false,
+          "verification_passed": false,
+          "verification_failed": false,
+          "rollback_performed": false,
+          "rollback_verified": false,
+          "finding_audit_events": []
+        },
+        {
+          "finding_id": "UPD-001",
+          "decision": "blocked",
+          "action": null,
+          "execution_status": "blocked",
+          "reason": "No remediation policy exists for this finding.",
+          "final_finding_status": "open",
+          "remediation_applied": false,
+          "verification_passed": false,
+          "verification_failed": false,
+          "rollback_performed": false,
+          "rollback_verified": false,
+          "finding_audit_events": []
+        }
+      ],
+      "integrity": {
+        "algorithm": "sha256",
+        "sha256": "127da3cb3f23bb756eca03b3821bca926bf30e650f5d350ab53c3c458d197b60"
+      }
     }
   },
   "asset": {

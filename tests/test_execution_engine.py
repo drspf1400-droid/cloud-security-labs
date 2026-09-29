@@ -319,3 +319,72 @@ def test_engine_preserves_verified_rollback_on_failure(
     assert "rollback_completed" in actions
 
     assert result["audit_trail"][0]["status"] == "failed"
+
+
+def test_engine_generates_execution_evidence():
+    assessment = make_assessment(
+        unknown_finding(),
+        environment="lab",
+    )
+
+    result = engine.execute_assessment_plan(
+        assessment,
+        actor="tester",
+        run_id="RUN-ENGINE-001",
+        evidence_timestamp=(
+            "2026-09-29T10:00:00+00:00"
+        ),
+    )
+
+    manifest = result["evidence_manifest"]
+
+    assert manifest["run_id"] == "RUN-ENGINE-001"
+    assert manifest["actor"] == "tester"
+    assert manifest["environment"] == "lab"
+
+    assert manifest["summary"] == {
+        "executed": 0,
+        "dry_run": 0,
+        "blocked": 1,
+        "failed": 0,
+    }
+
+    assert manifest["evidence"][0][
+        "finding_id"
+    ] == "UNKNOWN-001"
+
+    assert manifest["evidence"][0][
+        "execution_status"
+    ] == "blocked"
+
+    attached = (
+        result["assessment"]
+        ["assessment"]
+        ["execution_evidence"]
+    )
+
+    assert attached == manifest
+
+
+def test_engine_evidence_integrity_verifies():
+    from modules.execution_evidence import (
+        verify_manifest_integrity,
+    )
+
+    assessment = make_assessment(
+        unknown_finding(),
+        environment="lab",
+    )
+
+    result = engine.execute_assessment_plan(
+        assessment,
+        actor="tester",
+        run_id="RUN-INTEGRITY-001",
+        evidence_timestamp=(
+            "2026-09-29T10:00:00+00:00"
+        ),
+    )
+
+    assert verify_manifest_integrity(
+        result["evidence_manifest"]
+    )

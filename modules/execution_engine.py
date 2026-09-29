@@ -5,11 +5,17 @@ from datetime import datetime, timezone
 
 try:
     from modules.execution_plan import build_execution_plan
+    from modules.execution_evidence import (
+        build_execution_evidence,
+    )
     from modules.remediation import (
         safe_apply_ssh_root_login_remediation,
     )
 except ModuleNotFoundError:
     from execution_plan import build_execution_plan
+    from execution_evidence import (
+        build_execution_evidence,
+    )
     from remediation import (
         safe_apply_ssh_root_login_remediation,
     )
@@ -51,6 +57,8 @@ def execute_assessment_plan(
     actor,
     environment=None,
     execution_context=None,
+    run_id=None,
+    evidence_timestamp=None,
 ):
     """
     Execute an assessment remediation plan safely.
@@ -206,10 +214,28 @@ def execute_assessment_plan(
         "audit_trail": deepcopy(audit_trail),
     }
 
-    return {
+    engine_result = {
         "environment": plan["environment"],
         "summary": summary,
         "results": results,
         "audit_trail": audit_trail,
         "assessment": result_assessment,
     }
+
+    manifest = build_execution_evidence(
+        engine_result,
+        actor=actor,
+        run_id=run_id,
+        timestamp=evidence_timestamp,
+    )
+
+    result_assessment.setdefault(
+        "assessment",
+        {},
+    )["execution_evidence"] = deepcopy(
+        manifest
+    )
+
+    engine_result["evidence_manifest"] = manifest
+
+    return engine_result
