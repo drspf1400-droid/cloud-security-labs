@@ -5,7 +5,9 @@
     "scanner": {
       "name": "linux-security-checker",
       "version": "15"
-    }
+    },
+    "score": 35,
+    "risk_level": "high"
   },
   "asset": {
     "asset_id": "LAB-SRV-001",
