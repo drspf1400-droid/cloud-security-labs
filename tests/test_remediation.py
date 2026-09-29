@@ -295,3 +295,55 @@ def test_verification_failure_triggers_verified_rollback(
         "rollback_started",
         "rollback_completed",
     ]
+
+
+def test_direct_apply_is_blocked_in_production(tmp_path):
+    source = Path(
+        "tests/fixtures/sshd_config.insecure"
+    )
+
+    target = tmp_path / "sshd_config"
+    target.write_text(source.read_text())
+
+    original = target.read_text()
+    finding = sample_finding()
+
+    with pytest.raises(
+        ValueError,
+        match="blocked by policy",
+    ):
+        remediation.apply_ssh_root_login_remediation(
+            finding,
+            config_path=target,
+            actor="tester",
+            environment="production",
+        )
+
+    assert target.read_text() == original
+    assert finding["remediation"]["applied"] is False
+
+
+def test_safe_apply_is_blocked_in_production(tmp_path):
+    source = Path(
+        "tests/fixtures/sshd_config.insecure"
+    )
+
+    target = tmp_path / "sshd_config"
+    target.write_text(source.read_text())
+
+    original = target.read_text()
+    finding = sample_finding()
+
+    with pytest.raises(
+        ValueError,
+        match="blocked by policy",
+    ):
+        remediation.safe_apply_ssh_root_login_remediation(
+            finding,
+            config_path=target,
+            actor="tester",
+            environment="production",
+        )
+
+    assert target.read_text() == original
+    assert finding["remediation"]["applied"] is False
