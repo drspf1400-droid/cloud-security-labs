@@ -64,6 +64,50 @@
             "critical",
             "unknown"
           ]
+        },
+        "remediation_policy": {
+          "type": "object",
+          "required": [
+            "environment",
+            "summary"
+          ],
+          "properties": {
+            "environment": {
+              "type": "string",
+              "enum": [
+                "lab",
+                "development",
+                "test",
+                "staging",
+                "production",
+                "unknown"
+              ]
+            },
+            "summary": {
+              "type": "object",
+              "required": [
+                "apply",
+                "dry_run",
+                "blocked"
+              ],
+              "properties": {
+                "apply": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "dry_run": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "blocked": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
