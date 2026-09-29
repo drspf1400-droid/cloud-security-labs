@@ -200,6 +200,162 @@
             }
           },
           "additionalProperties": false
+        },
+        "execution": {
+          "type": "object",
+          "required": [
+            "environment",
+            "summary",
+            "results",
+            "audit_trail"
+          ],
+          "properties": {
+            "environment": {
+              "type": "string",
+              "enum": [
+                "lab",
+                "development",
+                "test",
+                "staging",
+                "production",
+                "unknown"
+              ]
+            },
+            "summary": {
+              "type": "object",
+              "required": [
+                "executed",
+                "dry_run",
+                "blocked",
+                "failed"
+              ],
+              "properties": {
+                "executed": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "dry_run": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "blocked": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "failed": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "additionalProperties": false
+            },
+            "results": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "finding_id",
+                  "decision",
+                  "action",
+                  "status",
+                  "reason"
+                ],
+                "properties": {
+                  "finding_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "decision": {
+                    "type": "string",
+                    "enum": [
+                      "apply",
+                      "dry-run",
+                      "blocked"
+                    ]
+                  },
+                  "action": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "executed",
+                      "dry-run",
+                      "blocked",
+                      "failed"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "audit_trail": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "timestamp",
+                  "actor",
+                  "finding_id",
+                  "decision",
+                  "action",
+                  "status",
+                  "reason"
+                ],
+                "properties": {
+                  "timestamp": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "actor": {
+                    "type": "string"
+                  },
+                  "finding_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "decision": {
+                    "type": "string",
+                    "enum": [
+                      "apply",
+                      "dry-run",
+                      "blocked"
+                    ]
+                  },
+                  "action": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "executed",
+                      "dry-run",
+                      "blocked",
+                      "failed"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
