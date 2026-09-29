@@ -15,6 +15,44 @@
         "dry_run": 0,
         "blocked": 4
       }
+    },
+    "execution_plan": {
+      "environment": "lab",
+      "summary": {
+        "apply": 0,
+        "dry_run": 0,
+        "blocked": 4
+      },
+      "items": [
+        {
+          "finding_id": "SSH-001",
+          "policy_decision": "blocked",
+          "execution_decision": "blocked",
+          "action": null,
+          "reason": "No remediation policy exists for this finding."
+        },
+        {
+          "finding_id": "FW-001",
+          "policy_decision": "blocked",
+          "execution_decision": "blocked",
+          "action": null,
+          "reason": "No remediation policy exists for this finding."
+        },
+        {
+          "finding_id": "NET-001",
+          "policy_decision": "blocked",
+          "execution_decision": "blocked",
+          "action": null,
+          "reason": "No remediation policy exists for this finding."
+        },
+        {
+          "finding_id": "UPD-001",
+          "policy_decision": "blocked",
+          "execution_decision": "blocked",
+          "action": null,
+          "reason": "No remediation policy exists for this finding."
+        }
+      ]
     }
   },
   "asset": {

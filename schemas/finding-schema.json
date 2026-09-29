@@ -108,6 +108,98 @@
             }
           },
           "additionalProperties": false
+        },
+        "execution_plan": {
+          "type": "object",
+          "required": [
+            "environment",
+            "summary",
+            "items"
+          ],
+          "properties": {
+            "environment": {
+              "type": "string",
+              "enum": [
+                "lab",
+                "development",
+                "test",
+                "staging",
+                "production",
+                "unknown"
+              ]
+            },
+            "summary": {
+              "type": "object",
+              "required": [
+                "apply",
+                "dry_run",
+                "blocked"
+              ],
+              "properties": {
+                "apply": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "dry_run": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "blocked": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "additionalProperties": false
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "finding_id",
+                  "policy_decision",
+                  "execution_decision",
+                  "action",
+                  "reason"
+                ],
+                "properties": {
+                  "finding_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "policy_decision": {
+                    "type": "string",
+                    "enum": [
+                      "apply",
+                      "dry-run",
+                      "blocked"
+                    ]
+                  },
+                  "execution_decision": {
+                    "type": "string",
+                    "enum": [
+                      "apply",
+                      "dry-run",
+                      "blocked"
+                    ]
+                  },
+                  "action": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
