@@ -521,6 +521,31 @@
                 }
               },
               "additionalProperties": false
+            },
+            "provenance": {
+              "type": "object",
+              "required": [
+                "algorithm",
+                "key_fingerprint",
+                "signature"
+              ],
+              "properties": {
+                "algorithm": {
+                  "type": "string",
+                  "enum": [
+                    "ed25519"
+                  ]
+                },
+                "key_fingerprint": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "signature": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "additionalProperties": false
             }
           },
           "additionalProperties": false

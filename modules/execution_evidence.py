@@ -17,6 +17,7 @@ def utc_now():
 def canonical_manifest_payload(manifest):
     payload = deepcopy(manifest)
     payload.pop("integrity", None)
+    payload.pop("provenance", None)
 
     return json.dumps(
         payload,

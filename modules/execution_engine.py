@@ -8,6 +8,9 @@ try:
     from modules.execution_evidence import (
         build_execution_evidence,
     )
+    from modules.evidence_signing import (
+        sign_execution_manifest,
+    )
     from modules.remediation import (
         safe_apply_ssh_root_login_remediation,
     )
@@ -15,6 +18,9 @@ except ModuleNotFoundError:
     from execution_plan import build_execution_plan
     from execution_evidence import (
         build_execution_evidence,
+    )
+    from evidence_signing import (
+        sign_execution_manifest,
     )
     from remediation import (
         safe_apply_ssh_root_login_remediation,
@@ -59,6 +65,7 @@ def execute_assessment_plan(
     execution_context=None,
     run_id=None,
     evidence_timestamp=None,
+    signing_private_key=None,
 ):
     """
     Execute an assessment remediation plan safely.
@@ -228,6 +235,12 @@ def execute_assessment_plan(
         run_id=run_id,
         timestamp=evidence_timestamp,
     )
+
+    if signing_private_key is not None:
+        manifest = sign_execution_manifest(
+            manifest,
+            signing_private_key,
+        )
 
     result_assessment.setdefault(
         "assessment",
