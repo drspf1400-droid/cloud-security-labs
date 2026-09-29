@@ -200,3 +200,98 @@ def test_apply_without_approval_is_blocked_and_file_unchanged(
         )
 
     assert target.read_text() == original
+
+
+def test_safe_apply_success_does_not_rollback(tmp_path):
+    source = Path(
+        "tests/fixtures/sshd_config.insecure"
+    )
+
+    target = tmp_path / "sshd_config"
+    target.write_text(source.read_text())
+
+    finding = sample_finding()
+
+    remediation.safe_apply_ssh_root_login_remediation(
+        finding,
+        config_path=target,
+        actor="tester",
+        timestamp="2026-01-01T00:30:00Z",
+    )
+
+    assert "PermitRootLogin no" in target.read_text()
+    assert finding["status"] == "remediated"
+
+    remed = finding["remediation"]
+
+    assert remed["applied"] is True
+    assert remed["verified"] is True
+    assert remed["rollback_performed"] is False
+
+    actions = [
+        entry["action"]
+        for entry in finding["audit_trail"]
+    ]
+
+    assert actions[-2:] == [
+        "remediation_applied",
+        "verification_passed",
+    ]
+
+
+def test_verification_failure_triggers_verified_rollback(
+    tmp_path,
+    monkeypatch,
+):
+    source = Path(
+        "tests/fixtures/sshd_config.insecure"
+    )
+
+    target = tmp_path / "sshd_config"
+    target.write_text(source.read_text())
+
+    original = target.read_text()
+    finding = sample_finding()
+
+    monkeypatch.setattr(
+        remediation,
+        "verify_ssh_root_login_disabled",
+        lambda config_path: False,
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="rollback completed",
+    ):
+        remediation.safe_apply_ssh_root_login_remediation(
+            finding,
+            config_path=target,
+            actor="tester",
+            note="simulate failed verification",
+            timestamp="2026-01-01T00:31:00Z",
+        )
+
+    # Exact pre-remediation state must be restored.
+    assert target.read_text() == original
+
+    # Finding stays approved because it is still unresolved.
+    assert finding["status"] == "approved"
+
+    remed = finding["remediation"]
+
+    assert remed["applied"] is False
+    assert remed["verified"] is False
+    assert remed["rollback_performed"] is True
+    assert remed["rollback_verified"] is True
+
+    actions = [
+        entry["action"]
+        for entry in finding["audit_trail"]
+    ]
+
+    assert actions[-4:] == [
+        "remediation_applied",
+        "verification_failed",
+        "rollback_started",
+        "rollback_completed",
+    ]
