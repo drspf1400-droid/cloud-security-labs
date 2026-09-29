@@ -7,6 +7,8 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 
+from modules.remediation_policy import evaluate_remediation_policy
+
 
 REMEDIATION_CATALOG = {
     "SSH-002": {
@@ -47,6 +49,24 @@ def ensure_remediation_approved(finding):
             "Remediation blocked: human approval is required"
         )
 
+
+
+def ensure_policy_allows_apply(
+    finding,
+    environment="lab",
+):
+    result = evaluate_remediation_policy(
+        finding,
+        environment=environment,
+    )
+
+    if result["decision"] != "apply":
+        raise ValueError(
+            "Remediation blocked by policy: "
+            + result["reason"]
+        )
+
+    return result
 
 def build_remediation_plan(finding):
     finding_id = finding["finding_id"]
@@ -206,8 +226,13 @@ def apply_ssh_root_login_remediation(
     actor,
     note=None,
     timestamp=None,
+    environment="lab",
 ):
     ensure_remediation_approved(finding)
+    ensure_policy_allows_apply(
+        finding,
+        environment=environment,
+    )
 
     if finding["finding_id"] != "SSH-002":
         raise ValueError(
@@ -293,12 +318,17 @@ def safe_apply_ssh_root_login_remediation(
     actor,
     note=None,
     timestamp=None,
+    environment="lab",
 ):
     """
     Apply SSH remediation with automatic rollback if
     post-remediation verification fails.
     """
     ensure_remediation_approved(finding)
+    ensure_policy_allows_apply(
+        finding,
+        environment=environment,
+    )
 
     if finding["finding_id"] != "SSH-002":
         raise ValueError(
