@@ -7,7 +7,15 @@
       "version": "15"
     },
     "score": 35,
-    "risk_level": "high"
+    "risk_level": "high",
+    "remediation_policy": {
+      "environment": "lab",
+      "summary": {
+        "apply": 0,
+        "dry_run": 0,
+        "blocked": 4
+      }
+    }
   },
   "asset": {
     "asset_id": "LAB-SRV-001",

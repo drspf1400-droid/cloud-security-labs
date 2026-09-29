@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from copy import deepcopy
+
 POLICY_CATALOG = {
     "SSH-002": {
         "lab": "apply",
@@ -51,3 +53,76 @@ def evaluate_remediation_policy(finding, environment="lab"):
             f"{decision} in {environment}."
         ),
     }
+
+
+def evaluate_assessment_policy(
+    assessment,
+    environment="lab",
+):
+    decisions = []
+
+    summary = {
+        "apply": 0,
+        "dry_run": 0,
+        "blocked": 0,
+    }
+
+    for finding in assessment.get("findings", []):
+        result = evaluate_remediation_policy(
+            finding,
+            environment=environment,
+        )
+
+        decision = result["decision"]
+
+        normalized_decision = (
+            "dry_run"
+            if decision == "dry-run"
+            else decision
+        )
+
+        if normalized_decision not in summary:
+            normalized_decision = "blocked"
+
+        summary[normalized_decision] += 1
+
+        decisions.append({
+            "finding_id": finding.get("finding_id"),
+            "decision": decision,
+            "reason": result["reason"],
+        })
+
+    return {
+        "environment": environment,
+        "policy_summary": summary,
+        "decisions": decisions,
+    }
+
+
+def attach_assessment_policy(
+    assessment,
+    environment=None,
+):
+    """
+    Return a copy of an assessment enriched with
+    remediation-policy summary information.
+    """
+    result = deepcopy(assessment)
+
+    if environment is None:
+        environment = (
+            result.get("asset", {})
+            .get("environment", "unknown")
+        )
+
+    evaluation = evaluate_assessment_policy(
+        result,
+        environment=environment,
+    )
+
+    result["assessment"]["remediation_policy"] = {
+        "environment": evaluation["environment"],
+        "summary": evaluation["policy_summary"],
+    }
+
+    return result
