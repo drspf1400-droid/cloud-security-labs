@@ -53,6 +53,83 @@
           "reason": "No remediation policy exists for this finding."
         }
       ]
+    },
+    "execution": {
+      "environment": "lab",
+      "summary": {
+        "executed": 0,
+        "dry_run": 0,
+        "blocked": 4,
+        "failed": 0
+      },
+      "results": [
+        {
+          "finding_id": "SSH-001",
+          "decision": "blocked",
+          "action": null,
+          "status": "blocked",
+          "reason": "No remediation policy exists for this finding."
+        },
+        {
+          "finding_id": "FW-001",
+          "decision": "blocked",
+          "action": null,
+          "status": "blocked",
+          "reason": "No remediation policy exists for this finding."
+        },
+        {
+          "finding_id": "NET-001",
+          "decision": "blocked",
+          "action": null,
+          "status": "blocked",
+          "reason": "No remediation policy exists for this finding."
+        },
+        {
+          "finding_id": "UPD-001",
+          "decision": "blocked",
+          "action": null,
+          "status": "blocked",
+          "reason": "No remediation policy exists for this finding."
+        }
+      ],
+      "audit_trail": [
+        {
+          "timestamp": "2026-09-29T07:48:24.701266+00:00",
+          "actor": "example-runner",
+          "finding_id": "SSH-001",
+          "decision": "blocked",
+          "action": null,
+          "status": "blocked",
+          "reason": "No remediation policy exists for this finding."
+        },
+        {
+          "timestamp": "2026-09-29T07:48:24.701324+00:00",
+          "actor": "example-runner",
+          "finding_id": "FW-001",
+          "decision": "blocked",
+          "action": null,
+          "status": "blocked",
+          "reason": "No remediation policy exists for this finding."
+        },
+        {
+          "timestamp": "2026-09-29T07:48:24.701332+00:00",
+          "actor": "example-runner",
+          "finding_id": "NET-001",
+          "decision": "blocked",
+          "action": null,
+          "status": "blocked",
+          "reason": "No remediation policy exists for this finding."
+        },
+        {
+          "timestamp": "2026-09-29T07:48:24.701338+00:00",
+          "actor": "example-runner",
+          "finding_id": "UPD-001",
+          "decision": "blocked",
+          "action": null,
+          "status": "blocked",
+          "reason": "No remediation policy exists for this finding."
+        }
+      ]
     }
   },
   "asset": {
