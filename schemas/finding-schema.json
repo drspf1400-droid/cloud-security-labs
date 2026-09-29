@@ -356,6 +356,174 @@
             }
           },
           "additionalProperties": false
+        },
+        "execution_evidence": {
+          "type": "object",
+          "required": [
+            "manifest_version",
+            "run_id",
+            "created_at",
+            "actor",
+            "environment",
+            "summary",
+            "evidence",
+            "integrity"
+          ],
+          "properties": {
+            "manifest_version": {
+              "type": "string"
+            },
+            "run_id": {
+              "type": "string"
+            },
+            "created_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "actor": {
+              "type": "string"
+            },
+            "environment": {
+              "type": "string",
+              "enum": [
+                "lab",
+                "development",
+                "test",
+                "staging",
+                "production",
+                "unknown"
+              ]
+            },
+            "summary": {
+              "type": "object",
+              "required": [
+                "executed",
+                "dry_run",
+                "blocked",
+                "failed"
+              ],
+              "properties": {
+                "executed": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "dry_run": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "blocked": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "failed": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "additionalProperties": false
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "finding_id",
+                  "decision",
+                  "action",
+                  "execution_status",
+                  "reason",
+                  "final_finding_status",
+                  "remediation_applied",
+                  "verification_passed",
+                  "verification_failed",
+                  "rollback_performed",
+                  "rollback_verified",
+                  "finding_audit_events"
+                ],
+                "properties": {
+                  "finding_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "decision": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "action": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "execution_status": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "reason": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "final_finding_status": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "remediation_applied": {
+                    "type": "boolean"
+                  },
+                  "verification_passed": {
+                    "type": "boolean"
+                  },
+                  "verification_failed": {
+                    "type": "boolean"
+                  },
+                  "rollback_performed": {
+                    "type": "boolean"
+                  },
+                  "rollback_verified": {
+                    "type": "boolean"
+                  },
+                  "finding_audit_events": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "integrity": {
+              "type": "object",
+              "required": [
+                "algorithm",
+                "sha256"
+              ],
+              "properties": {
+                "algorithm": {
+                  "type": "string",
+                  "enum": [
+                    "sha256"
+                  ]
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
