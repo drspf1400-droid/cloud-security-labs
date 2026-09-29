@@ -388,3 +388,90 @@ def test_engine_evidence_integrity_verifies():
     assert verify_manifest_integrity(
         result["evidence_manifest"]
     )
+
+
+def test_engine_remains_unsigned_without_signing_key():
+    assessment = make_assessment(
+        unknown_finding(),
+        environment="lab",
+    )
+
+    result = engine.execute_assessment_plan(
+        assessment,
+        actor="tester",
+        run_id="RUN-UNSIGNED-001",
+        evidence_timestamp=(
+            "2026-09-29T10:00:00+00:00"
+        ),
+    )
+
+    assert (
+        "provenance"
+        not in result["evidence_manifest"]
+    )
+
+
+def test_engine_can_sign_execution_evidence():
+    from modules.evidence_signing import (
+        generate_ed25519_keypair,
+        verify_signed_manifest,
+    )
+
+    private_key, public_key = (
+        generate_ed25519_keypair()
+    )
+
+    assessment = make_assessment(
+        unknown_finding(),
+        environment="lab",
+    )
+
+    result = engine.execute_assessment_plan(
+        assessment,
+        actor="tester",
+        run_id="RUN-SIGNED-ENGINE-001",
+        evidence_timestamp=(
+            "2026-09-29T10:00:00+00:00"
+        ),
+        signing_private_key=private_key,
+    )
+
+    manifest = result["evidence_manifest"]
+
+    assert manifest["provenance"][
+        "algorithm"
+    ] == "ed25519"
+
+    assert verify_signed_manifest(
+        manifest,
+        public_key,
+    )
+
+
+def test_engine_signed_evidence_is_attached_to_assessment():
+    from modules.evidence_signing import (
+        generate_ed25519_keypair,
+    )
+
+    private_key, _ = generate_ed25519_keypair()
+
+    assessment = make_assessment(
+        unknown_finding(),
+        environment="lab",
+    )
+
+    result = engine.execute_assessment_plan(
+        assessment,
+        actor="tester",
+        run_id="RUN-SIGNED-ATTACHED-001",
+        signing_private_key=private_key,
+    )
+
+    attached = (
+        result["assessment"]
+        ["assessment"]
+        ["execution_evidence"]
+    )
+
+    assert attached == result["evidence_manifest"]
+    assert "provenance" in attached
