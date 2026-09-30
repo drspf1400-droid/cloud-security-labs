@@ -1,0 +1,46 @@
+{
+  "report_version": "1.0",
+  "report_id": "REPORT-TRUST-EXAMPLE-001",
+  "generated_at": "2026-09-29T11:05:00+00:00",
+  "manifest": {
+    "run_id": "RUN-TRUST-EXAMPLE-001",
+    "created_at": "2026-09-29T11:00:00+00:00",
+    "actor": "example-runner",
+    "environment": "lab"
+  },
+  "signer": {
+    "signer_id": "security-automation",
+    "key_id": "key-example-001",
+    "key_fingerprint": "cd8f7b17f977d4a16433de248e389923fa8f97d796a14fbbb4fd7c0378d890c8",
+    "key_status": "active",
+    "registered_at": "2026-09-29T10:00:00+00:00",
+    "revoked_at": null,
+    "revocation_reason": null
+  },
+  "verification": {
+    "signature_valid": true,
+    "current_trust": {
+      "accepted": true,
+      "status": "trusted",
+      "reason": "Manifest signature is valid and the signer key is trusted."
+    },
+    "historical_trust": {
+      "accepted": true,
+      "status": "historically_trusted",
+      "reason": "Manifest signature is valid and the signer key was trusted at the manifest creation time."
+    },
+    "effective_decision": "accept",
+    "decision_basis": "current_trust",
+    "decision_reason": "Signer is currently trusted and the signature is valid."
+  },
+  "lifecycle_audit": [
+    {
+      "timestamp": "2026-09-29T10:00:00+00:00",
+      "action": "signer_key_registered",
+      "signer_id": "security-automation",
+      "key_id": "key-example-001",
+      "key_fingerprint": "cd8f7b17f977d4a16433de248e389923fa8f97d796a14fbbb4fd7c0378d890c8",
+      "details": {}
+    }
+  ]
+}
