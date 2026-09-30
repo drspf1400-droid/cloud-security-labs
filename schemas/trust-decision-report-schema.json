@@ -1,0 +1,212 @@
+{
+  "type": "object",
+  "required": [
+    "report_version",
+    "report_id",
+    "generated_at",
+    "manifest",
+    "signer",
+    "verification",
+    "lifecycle_audit"
+  ],
+  "properties": {
+    "report_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "report_id": {
+      "type": "string"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "manifest": {
+      "type": "object",
+      "required": [
+        "run_id",
+        "created_at",
+        "actor",
+        "environment"
+      ],
+      "properties": {
+        "run_id": {
+          "type": ["string", "null"]
+        },
+        "created_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "actor": {
+          "type": ["string", "null"]
+        },
+        "environment": {
+          "type": ["string", "null"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "signer": {
+      "type": "object",
+      "required": [
+        "signer_id",
+        "key_id",
+        "key_fingerprint",
+        "key_status",
+        "registered_at",
+        "revoked_at",
+        "revocation_reason"
+      ],
+      "properties": {
+        "signer_id": {
+          "type": ["string", "null"]
+        },
+        "key_id": {
+          "type": ["string", "null"]
+        },
+        "key_fingerprint": {
+          "type": ["string", "null"],
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "key_status": {
+          "type": ["string", "null"],
+          "enum": [
+            "active",
+            "revoked",
+            null
+          ]
+        },
+        "registered_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "revoked_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "revocation_reason": {
+          "type": ["string", "null"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "verification": {
+      "type": "object",
+      "required": [
+        "signature_valid",
+        "current_trust",
+        "historical_trust",
+        "effective_decision",
+        "decision_basis",
+        "decision_reason"
+      ],
+      "properties": {
+        "signature_valid": {
+          "type": "boolean"
+        },
+        "current_trust": {
+          "type": "object",
+          "required": [
+            "accepted",
+            "status",
+            "reason"
+          ],
+          "properties": {
+            "accepted": {
+              "type": "boolean"
+            },
+            "status": {
+              "type": ["string", "null"]
+            },
+            "reason": {
+              "type": ["string", "null"]
+            }
+          },
+          "additionalProperties": false
+        },
+        "historical_trust": {
+          "type": "object",
+          "required": [
+            "accepted",
+            "status",
+            "reason"
+          ],
+          "properties": {
+            "accepted": {
+              "type": "boolean"
+            },
+            "status": {
+              "type": ["string", "null"]
+            },
+            "reason": {
+              "type": ["string", "null"]
+            }
+          },
+          "additionalProperties": false
+        },
+        "effective_decision": {
+          "type": "string",
+          "enum": [
+            "accept",
+            "reject"
+          ]
+        },
+        "decision_basis": {
+          "type": "string",
+          "enum": [
+            "current_trust",
+            "historical_trust",
+            "rejected"
+          ]
+        },
+        "decision_reason": {
+          "type": ["string", "null"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "lifecycle_audit": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "timestamp",
+          "action",
+          "signer_id",
+          "key_id",
+          "key_fingerprint",
+          "details"
+        ],
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "signer_key_registered",
+              "signer_key_revoked",
+              "signer_key_rotated"
+            ]
+          },
+          "signer_id": {
+            "type": "string"
+          },
+          "key_id": {
+            "type": "string"
+          },
+          "key_fingerprint": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "details": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
