@@ -357,3 +357,290 @@ def verify_trusted_manifest(
         "key_id": signer.get("key_id"),
         "key_fingerprint": fingerprint,
     }
+
+
+def parse_timestamp(value):
+    if not value:
+        raise ValueError("Timestamp is required.")
+
+    parsed = datetime.fromisoformat(
+        value.replace("Z", "+00:00")
+    )
+
+    if parsed.tzinfo is None:
+        raise ValueError(
+            "Timestamp must include timezone information."
+        )
+
+    return parsed
+
+
+def verify_historical_trust(
+    manifest,
+    registry,
+):
+    """
+    Verify a signed manifest against the signer trust
+    state at the time the manifest was created.
+
+    A key revoked later may still validate evidence
+    created before the revocation time.
+    """
+    provenance = manifest.get(
+        "provenance",
+        {},
+    )
+
+    fingerprint = provenance.get(
+        "key_fingerprint"
+    )
+
+    if not fingerprint:
+        return {
+            "accepted": False,
+            "trusted_at_signing_time": False,
+            "signature_valid": False,
+            "status": "unsigned",
+            "reason": (
+                "Manifest does not contain signer provenance."
+            ),
+        }
+
+    signer = (
+        registry
+        .get("signers", {})
+        .get(fingerprint)
+    )
+
+    if signer is None:
+        return {
+            "accepted": False,
+            "trusted_at_signing_time": False,
+            "signature_valid": False,
+            "status": "unknown",
+            "reason": (
+                "Signing key is not present "
+                "in the trusted registry."
+            ),
+        }
+
+    try:
+        evidence_time = parse_timestamp(
+            manifest.get("created_at")
+        )
+
+        registered_at = parse_timestamp(
+            signer.get("registered_at")
+        )
+
+        revoked_at = None
+
+        if signer.get("revoked_at"):
+            revoked_at = parse_timestamp(
+                signer["revoked_at"]
+            )
+
+    except (ValueError, TypeError):
+        return {
+            "accepted": False,
+            "trusted_at_signing_time": False,
+            "signature_valid": False,
+            "status": "invalid_timestamp",
+            "reason": (
+                "Manifest or registry contains "
+                "an invalid trust timestamp."
+            ),
+        }
+
+    try:
+        public_key = decode_public_key(
+            signer["public_key"]
+        )
+    except Exception:
+        return {
+            "accepted": False,
+            "trusted_at_signing_time": False,
+            "signature_valid": False,
+            "status": "invalid_registry_key",
+            "reason": (
+                "Trusted registry contains "
+                "an invalid public key."
+            ),
+        }
+
+    signature_valid = verify_signed_manifest(
+        manifest,
+        public_key,
+    )
+
+    if not signature_valid:
+        return {
+            "accepted": False,
+            "trusted_at_signing_time": False,
+            "signature_valid": False,
+            "status": "invalid_signature",
+            "reason": (
+                "Manifest signature is invalid."
+            ),
+        }
+
+    if evidence_time < registered_at:
+        return {
+            "accepted": False,
+            "trusted_at_signing_time": False,
+            "signature_valid": True,
+            "status": "before_registration",
+            "reason": (
+                "Manifest predates signer key registration."
+            ),
+        }
+
+    if (
+        revoked_at is not None
+        and evidence_time >= revoked_at
+    ):
+        return {
+            "accepted": False,
+            "trusted_at_signing_time": False,
+            "signature_valid": True,
+            "status": "revoked_at_signing_time",
+            "reason": (
+                "Signer key was revoked when "
+                "the manifest was created."
+            ),
+        }
+
+    return {
+        "accepted": True,
+        "trusted_at_signing_time": True,
+        "signature_valid": True,
+        "status": "historically_trusted",
+        "reason": (
+            "Manifest signature is valid and "
+            "the signer key was trusted at "
+            "the manifest creation time."
+        ),
+        "signer_id": signer.get("signer_id"),
+        "key_id": signer.get("key_id"),
+        "key_fingerprint": fingerprint,
+    }
+
+
+def signer_lifecycle(
+    registry,
+    fingerprint,
+):
+    """
+    Return signer-key state and related registry
+    audit events without mutating the registry.
+    """
+    signer = (
+        registry
+        .get("signers", {})
+        .get(fingerprint)
+    )
+
+    events = []
+
+    for event in registry.get(
+        "audit_trail",
+        [],
+    ):
+        details = event.get(
+            "details",
+            {},
+        )
+
+        if (
+            event.get("key_fingerprint")
+            == fingerprint
+            or details.get("old_fingerprint")
+            == fingerprint
+            or details.get("new_fingerprint")
+            == fingerprint
+        ):
+            events.append(
+                deepcopy(event)
+            )
+
+    return {
+        "signer": deepcopy(signer),
+        "audit_events": events,
+    }
+
+
+def evaluate_manifest_trust(
+    manifest,
+    registry,
+):
+    """
+    Compare current trust with historical trust.
+
+    Effective acceptance rules:
+
+    - Currently active + valid signature:
+      accepted using current trust.
+    - Currently revoked but historically trusted:
+      accepted using historical trust.
+    - Invalid/unknown/untrusted at signing time:
+      rejected.
+    """
+    current = verify_trusted_manifest(
+        manifest,
+        registry,
+    )
+
+    historical = verify_historical_trust(
+        manifest,
+        registry,
+    )
+
+    fingerprint = (
+        manifest
+        .get("provenance", {})
+        .get("key_fingerprint")
+    )
+
+    lifecycle = signer_lifecycle(
+        registry,
+        fingerprint,
+    )
+
+    if current.get("accepted"):
+        effective = {
+            "accepted": True,
+            "basis": "current_trust",
+            "reason": (
+                "Signer is currently trusted "
+                "and the signature is valid."
+            ),
+        }
+
+    elif historical.get("accepted"):
+        effective = {
+            "accepted": True,
+            "basis": "historical_trust",
+            "reason": (
+                "Signer is no longer currently trusted, "
+                "but was trusted when the evidence "
+                "was created."
+            ),
+        }
+
+    else:
+        effective = {
+            "accepted": False,
+            "basis": "rejected",
+            "reason": (
+                "Evidence is not valid under either "
+                "current or historical trust."
+            ),
+        }
+
+    return {
+        "key_fingerprint": fingerprint,
+        "current_trust": current,
+        "historical_trust": historical,
+        "effective_trust": effective,
+        "signer_lifecycle": lifecycle,
+    }
