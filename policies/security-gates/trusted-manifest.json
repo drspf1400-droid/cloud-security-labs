@@ -19,5 +19,12 @@
       "policy_version": "1.0",
       "fingerprint": "d287b04352241e92043065e5de7da1bba15469e5beb938ab263e39e2f78df02f"
     }
+  },
+  "signature": {
+    "algorithm": "ed25519",
+    "signer_id": "security-policy-authority",
+    "key_id": "policy-manifest-key-001",
+    "key_fingerprint": "7211e6eed169e6766142690188ce3a1ec467ae867aec120065fcaeb77bc17c58",
+    "value": "2VJVR12kB8yTcRcIjxuX3Z2IGLxgPATPGVQXTFJG8aGL+pG19Lm8dGhu2ffpV24o+Cwcg2wKc+zWnDyux7dMBg=="
   }
 }

@@ -28,11 +28,23 @@ jobs:
         run: |
           python -m pytest -q
 
+      - name: Require external policy trust anchor
+        env:
+          POLICY_MANIFEST_PUBLIC_KEY_B64: ${{ vars.POLICY_MANIFEST_PUBLIC_KEY_B64 }}
+        run: |
+          if [ -z "$POLICY_MANIFEST_PUBLIC_KEY_B64" ]; then
+            echo "POLICY_MANIFEST_PUBLIC_KEY_B64 repository variable is required"
+            exit 1
+          fi
+
       - name: Verify security gate policy integrity
+        env:
+          POLICY_MANIFEST_PUBLIC_KEY_B64: ${{ vars.POLICY_MANIFEST_PUBLIC_KEY_B64 }}
         run: |
           python scripts/verify_security_policy_integrity.py \
             --policy-dir policies/security-gates \
             --manifest policies/security-gates/trusted-manifest.json \
+            --public-key-b64 "$POLICY_MANIFEST_PUBLIC_KEY_B64" \
             --output ci-policy-integrity/security_policy_integrity.json
 
       - name: Prepare passing assessment

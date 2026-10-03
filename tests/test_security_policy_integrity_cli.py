@@ -162,3 +162,125 @@ def test_integrity_cli_rejects_missing_manifest(
         "File does not exist"
         in result.stderr
     )
+
+
+def test_integrity_cli_rejects_tampered_signed_manifest(
+    tmp_path,
+):
+    manifest = json.loads(
+        (
+            SOURCE_POLICY_DIR
+            / "trusted-manifest.json"
+        ).read_text(
+            encoding="utf-8"
+        )
+    )
+
+    manifest["manifest_id"] = (
+        "ATTACKER-MODIFIED-MANIFEST"
+    )
+
+    tampered = (
+        tmp_path
+        / "tampered-manifest.json"
+    )
+
+    tampered.write_text(
+        json.dumps(
+            manifest,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = run_cli(
+        "--manifest",
+        tampered,
+        "--public-key-file",
+        SOURCE_POLICY_DIR
+        / "trusted-manifest-public-key.b64",
+    )
+
+    assert result.returncode == 4
+
+    assert (
+        "Manifest authenticity: FAILED"
+        in result.stdout
+    )
+
+
+def test_integrity_cli_accepts_external_trust_anchor(
+    tmp_path,
+):
+    public_key = (
+        SOURCE_POLICY_DIR
+        / "trusted-manifest-public-key.b64"
+    ).read_text(
+        encoding="utf-8"
+    ).strip()
+
+    output = (
+        tmp_path
+        / "external-anchor-result.json"
+    )
+
+    result = run_cli(
+        "--public-key-b64",
+        public_key,
+        "--output",
+        output,
+    )
+
+    assert result.returncode == 0
+
+    assert (
+        "Manifest authenticity: VERIFIED"
+        in result.stdout
+    )
+
+    assert (
+        "Trust anchor source: external_value"
+        in result.stdout
+    )
+
+    saved = json.loads(
+        output.read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert (
+        saved["trust_anchor"]["source"]
+        == "external_value"
+    )
+
+
+def test_integrity_cli_rejects_wrong_external_anchor():
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+        Ed25519PrivateKey,
+    )
+
+    from modules.policy_manifest_signing import (
+        public_key_to_base64,
+    )
+
+    wrong_key = (
+        Ed25519PrivateKey
+        .generate()
+        .public_key()
+    )
+
+    result = run_cli(
+        "--public-key-b64",
+        public_key_to_base64(
+            wrong_key
+        ),
+    )
+
+    assert result.returncode == 4
+
+    assert (
+        "Manifest authenticity: FAILED"
+        in result.stdout
+    )
