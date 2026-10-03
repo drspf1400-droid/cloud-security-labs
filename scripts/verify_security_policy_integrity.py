@@ -26,11 +26,17 @@ from modules.security_policy_integrity import (
     evaluate_policy_drift,
 )
 
+from modules.policy_signer_registry import (
+    evaluate_policy_manifest_trust,
+    policy_signer_registry_fingerprint,
+)
+
 
 EXIT_OK = 0
 EXIT_ERROR = 1
 EXIT_DRIFT = 3
 EXIT_SIGNATURE_INVALID = 4
+EXIT_REGISTRY_INTEGRITY_INVALID = 5
 
 DEFAULT_PUBLIC_KEY_FILE = (
     "policies/security-gates/"
@@ -154,6 +160,23 @@ def parse_args():
     )
 
     parser.add_argument(
+        "--signer-registry",
+        help=(
+            "Optional trusted policy signer registry. "
+            "When supplied, signer lifecycle trust "
+            "is evaluated instead of single-key trust."
+        ),
+    )
+
+    parser.add_argument(
+        "--signer-registry-sha256",
+        help=(
+            "Externally trusted SHA-256 fingerprint "
+            "of the canonical signer registry"
+        ),
+    )
+
+    parser.add_argument(
         "--output",
         help=(
             "Optional machine-readable result JSON"
@@ -183,34 +206,119 @@ def main():
             args.manifest
         )
 
-        if args.public_key_b64:
-            public_key = decode_public_key(
-                args.public_key_b64
+        registry_trust = None
+
+        if args.signer_registry:
+            registry = load_json(
+                args.signer_registry
             )
 
-            trust_anchor_source = (
-                "external_value"
+            registry_fingerprint = (
+                policy_signer_registry_fingerprint(
+                    registry
+                )
             )
+
+            if args.signer_registry_sha256:
+                expected_registry_fingerprint = (
+                    args.signer_registry_sha256
+                    .strip()
+                    .lower()
+                )
+
+                if (
+                    registry_fingerprint
+                    != expected_registry_fingerprint
+                ):
+                    result = {
+                        "registry_integrity": {
+                            "valid": False,
+                            "expected_fingerprint": (
+                                expected_registry_fingerprint
+                            ),
+                            "actual_fingerprint": (
+                                registry_fingerprint
+                            ),
+                        },
+                        "integrity_ok": False,
+                    }
+
+                    write_result(
+                        args.output,
+                        result,
+                    )
+
+                    print(
+                        "Signer registry integrity: FAILED"
+                    )
+
+                    return (
+                        EXIT_REGISTRY_INTEGRITY_INVALID
+                    )
+
+            registry_trust = (
+                evaluate_policy_manifest_trust(
+                    manifest,
+                    registry,
+                )
+            )
+
+            effective = registry_trust[
+                "effective_trust"
+            ]
+
+            authenticity = {
+                "valid": (
+                    effective["accepted"]
+                ),
+                "status": (
+                    registry_trust[
+                        "current_trust"
+                    ].get("status")
+                ),
+                "reason": (
+                    effective.get("reason")
+                ),
+                "key_fingerprint": (
+                    registry_trust.get(
+                        "key_fingerprint"
+                    )
+                ),
+            }
+
+            trust_anchor_source = (
+                "signer_registry"
+            )
+
         else:
-            public_key_path = (
-                args.public_key_file
-                or DEFAULT_PUBLIC_KEY_FILE
-            )
+            if args.public_key_b64:
+                public_key = decode_public_key(
+                    args.public_key_b64
+                )
 
-            public_key = load_public_key(
-                public_key_path
-            )
+                trust_anchor_source = (
+                    "external_value"
+                )
+            else:
+                public_key_path = (
+                    args.public_key_file
+                    or DEFAULT_PUBLIC_KEY_FILE
+                )
 
-            trust_anchor_source = (
-                "repository_file"
-            )
+                public_key = load_public_key(
+                    public_key_path
+                )
 
-        authenticity = (
-            verify_policy_manifest_signature(
-                manifest,
-                public_key,
+                trust_anchor_source = (
+                    "repository_file"
+                )
+
+            authenticity = (
+                verify_policy_manifest_signature(
+                    manifest,
+                    public_key,
+                )
             )
-        )
 
         if not authenticity["valid"]:
             result = {
@@ -232,6 +340,11 @@ def main():
                 },
                 "integrity_ok": False,
             }
+
+            if registry_trust is not None:
+                result[
+                    "signer_trust"
+                ] = registry_trust
 
             write_result(
                 args.output,
@@ -267,6 +380,21 @@ def main():
             ),
         }
 
+        if registry_trust is not None:
+            result["signer_trust"] = (
+                registry_trust
+            )
+
+            result["registry_integrity"] = {
+                "valid": True,
+                "fingerprint": (
+                    registry_fingerprint
+                ),
+                "externally_pinned": bool(
+                    args.signer_registry_sha256
+                ),
+            }
+
         write_result(
             args.output,
             result,
@@ -291,15 +419,44 @@ def main():
         f"{trust_anchor_source}"
     )
 
-    print(
-        "Signer: "
-        f"{authenticity.get('signer_id')}"
-    )
+    if registry_trust is not None:
+        print(
+            "Signer trust basis: "
+            f"{registry_trust['effective_trust'].get('basis')}"
+        )
 
-    print(
-        "Signing key: "
-        f"{authenticity.get('key_id')}"
-    )
+        lifecycle_signer = (
+            registry_trust[
+                "signer_lifecycle"
+            ].get("signer")
+            or {}
+        )
+
+        print(
+            "Signer: "
+            f"{lifecycle_signer.get('signer_id')}"
+        )
+
+        print(
+            "Signing key: "
+            f"{lifecycle_signer.get('key_id')}"
+        )
+
+        print(
+            "Signer status: "
+            f"{lifecycle_signer.get('status')}"
+        )
+
+    else:
+        print(
+            "Signer: "
+            f"{authenticity.get('signer_id')}"
+        )
+
+        print(
+            "Signing key: "
+            f"{authenticity.get('key_id')}"
+        )
 
     print(
         "Policy integrity: "

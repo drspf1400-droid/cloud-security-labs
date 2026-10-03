@@ -39,12 +39,18 @@ jobs:
 
       - name: Verify security gate policy integrity
         env:
-          POLICY_MANIFEST_PUBLIC_KEY_B64: ${{ vars.POLICY_MANIFEST_PUBLIC_KEY_B64 }}
+          POLICY_SIGNER_REGISTRY_SHA256: ${{ vars.POLICY_SIGNER_REGISTRY_SHA256 }}
         run: |
+          if [ -z "$POLICY_SIGNER_REGISTRY_SHA256" ]; then
+            echo "POLICY_SIGNER_REGISTRY_SHA256 repository variable is required"
+            exit 1
+          fi
+
           python scripts/verify_security_policy_integrity.py \
             --policy-dir policies/security-gates \
             --manifest policies/security-gates/trusted-manifest.json \
-            --public-key-b64 "$POLICY_MANIFEST_PUBLIC_KEY_B64" \
+            --signer-registry policies/security-gates/trusted-policy-signers.json \
+            --signer-registry-sha256 "$POLICY_SIGNER_REGISTRY_SHA256" \
             --output ci-policy-integrity/security_policy_integrity.json
 
       - name: Prepare passing assessment

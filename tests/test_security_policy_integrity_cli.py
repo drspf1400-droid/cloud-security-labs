@@ -284,3 +284,263 @@ def test_integrity_cli_rejects_wrong_external_anchor():
         "Manifest authenticity: FAILED"
         in result.stdout
     )
+
+
+def test_integrity_cli_accepts_trusted_signer_registry(
+    tmp_path,
+):
+    registry = (
+        SOURCE_POLICY_DIR
+        / "trusted-policy-signers.json"
+    )
+
+    output = (
+        tmp_path
+        / "registry-result.json"
+    )
+
+    result = run_cli(
+        "--signer-registry",
+        registry,
+        "--output",
+        output,
+    )
+
+    assert result.returncode == 0
+
+    assert (
+        "Trust anchor source: signer_registry"
+        in result.stdout
+    )
+
+    assert (
+        "Signer trust basis: current_trust"
+        in result.stdout
+    )
+
+    saved = json.loads(
+        output.read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert (
+        saved["trust_anchor"]["source"]
+        == "signer_registry"
+    )
+
+    assert (
+        saved["signer_trust"]
+        ["effective_trust"]["accepted"]
+        is True
+    )
+
+    assert (
+        saved["signer_trust"]
+        ["effective_trust"]["basis"]
+        == "current_trust"
+    )
+
+
+def test_integrity_cli_rejects_unknown_registry_signer(
+    tmp_path,
+):
+    registry = json.loads(
+        (
+            SOURCE_POLICY_DIR
+            / "trusted-policy-signers.json"
+        ).read_text(
+            encoding="utf-8"
+        )
+    )
+
+    registry["signers"] = []
+
+    registry_path = (
+        tmp_path
+        / "empty-registry.json"
+    )
+
+    registry_path.write_text(
+        json.dumps(
+            registry,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = run_cli(
+        "--signer-registry",
+        registry_path,
+    )
+
+    assert result.returncode == 4
+
+    assert (
+        "Manifest authenticity: FAILED"
+        in result.stdout
+    )
+
+
+def test_integrity_cli_records_signer_lifecycle(
+    tmp_path,
+):
+    output = (
+        tmp_path
+        / "lifecycle-result.json"
+    )
+
+    result = run_cli(
+        "--signer-registry",
+        SOURCE_POLICY_DIR
+        / "trusted-policy-signers.json",
+        "--output",
+        output,
+    )
+
+    assert result.returncode == 0
+
+    saved = json.loads(
+        output.read_text(
+            encoding="utf-8"
+        )
+    )
+
+    signer = (
+        saved["signer_trust"]
+        ["signer_lifecycle"]
+        ["signer"]
+    )
+
+    assert signer["status"] == "active"
+
+    assert (
+        signer["key_id"]
+        == "policy-manifest-key-001"
+    )
+
+    assert (
+        len(
+            saved["signer_trust"]
+            ["signer_lifecycle"]
+            ["audit_events"]
+        )
+        >= 1
+    )
+
+
+def test_integrity_cli_accepts_pinned_registry(
+    tmp_path,
+):
+    from modules.policy_signer_registry import (
+        policy_signer_registry_fingerprint,
+    )
+
+    registry_path = (
+        SOURCE_POLICY_DIR
+        / "trusted-policy-signers.json"
+    )
+
+    registry = json.loads(
+        registry_path.read_text(
+            encoding="utf-8"
+        )
+    )
+
+    fingerprint = (
+        policy_signer_registry_fingerprint(
+            registry
+        )
+    )
+
+    output = (
+        tmp_path
+        / "pinned-registry-result.json"
+    )
+
+    result = run_cli(
+        "--signer-registry",
+        registry_path,
+        "--signer-registry-sha256",
+        fingerprint,
+        "--output",
+        output,
+    )
+
+    assert result.returncode == 0
+
+    saved = json.loads(
+        output.read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert (
+        saved["registry_integrity"]["valid"]
+        is True
+    )
+
+    assert (
+        saved["registry_integrity"][
+            "externally_pinned"
+        ]
+        is True
+    )
+
+
+def test_integrity_cli_rejects_modified_pinned_registry(
+    tmp_path,
+):
+    from modules.policy_signer_registry import (
+        policy_signer_registry_fingerprint,
+    )
+
+    original_path = (
+        SOURCE_POLICY_DIR
+        / "trusted-policy-signers.json"
+    )
+
+    registry = json.loads(
+        original_path.read_text(
+            encoding="utf-8"
+        )
+    )
+
+    trusted_fingerprint = (
+        policy_signer_registry_fingerprint(
+            registry
+        )
+    )
+
+    registry["signers"][0][
+        "status"
+    ] = "revoked"
+
+    modified_path = (
+        tmp_path
+        / "modified-registry.json"
+    )
+
+    modified_path.write_text(
+        json.dumps(
+            registry,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = run_cli(
+        "--signer-registry",
+        modified_path,
+        "--signer-registry-sha256",
+        trusted_fingerprint,
+    )
+
+    assert result.returncode == 5
+
+    assert (
+        "Signer registry integrity: FAILED"
+        in result.stdout
+    )
