@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Security Assurance Report</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: #f5f7fa;
+    color: #1f2937;
+    margin: 40px;
+}
+
+.container {
+    max-width: 1100px;
+    margin: auto;
+    background: white;
+    padding: 32px;
+    border-radius: 10px;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.card {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.label {
+    color: #6b7280;
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+.value {
+    font-size: 22px;
+    font-weight: bold;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 30px;
+}
+
+th, td {
+    border-bottom: 1px solid #e5e7eb;
+    padding: 10px;
+    text-align: left;
+}
+
+th {
+    background: #f9fafb;
+}
+
+.meta {
+    color: #6b7280;
+    font-size: 13px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Security Assurance Report</h1>
+
+<p class="meta">
+Report ID: SECURITY-ASSURANCE-DEMO-001<br>
+Generated: 2026-09-30T14:00:00+00:00
+</p>
+
+<h2>Executive Summary</h2>
+
+<div class="grid">
+
+<div class="card">
+<div class="label">Security Score</div>
+<div class="value">35</div>
+</div>
+
+<div class="card">
+<div class="label">Risk Level</div>
+<div class="value">high</div>
+</div>
+
+<div class="card">
+<div class="label">Assurance State</div>
+<div class="value">attention_required</div>
+</div>
+
+<div class="card">
+<div class="label">Trust Decision</div>
+<div class="value">accept</div>
+</div>
+
+</div>
+
+<h2>Asset Context</h2>
+
+<table>
+<tr><th>Asset ID</th><td>LAB-SRV-001</td></tr>
+<tr><th>Hostname</th><td>ubuntu-lab</td></tr>
+<tr><th>Asset Type</th><td>linux_server</td></tr>
+<tr><th>Environment</th><td>lab</td></tr>
+</table>
+
+<h2>Assurance Controls</h2>
+
+<table>
+<tr>
+<th>Control</th>
+<th>Present</th>
+</tr>
+
+<tr><td>Human Review Present</td><td>NO</td></tr><tr><td>Policy Guardrails Present</td><td>YES</td></tr><tr><td>Execution Plan Present</td><td>YES</td></tr><tr><td>Execution Evidence Present</td><td>YES</td></tr><tr><td>Integrity Hash Present</td><td>YES</td></tr><tr><td>Cryptographic Provenance Present</td><td>NO</td></tr><tr><td>Trust Decision Present</td><td>YES</td></tr>
+
+</table>
+
+<h2>Trust Assurance</h2>
+
+<table>
+<tr><th>Effective Decision</th><td>accept</td></tr>
+<tr><th>Decision Basis</th><td>current_trust</td></tr>
+<tr><th>Signature Valid</th><td>True</td></tr>
+<tr><th>Signer</th><td>security-automation</td></tr>
+<tr><th>Key ID</th><td>key-example-001</td></tr>
+<tr><th>Key Status</th><td>active</td></tr>
+</table>
+
+<h2>Security Findings</h2>
+
+<table>
+
+<tr>
+<th>ID</th>
+<th>Title</th>
+<th>Severity</th>
+<th>Status</th>
+<th>Recommendation</th>
+</tr>
+
+<tr><td>SSH-001</td><td>SSH root login enabled</td><td>high</td><td>open</td><td>Disable direct SSH root login.</td></tr><tr><td>FW-001</td><td>Host firewall is inactive</td><td>high</td><td>open</td><td>Enable and configure the host firewall according to the required network policy.</td></tr><tr><td>NET-001</td><td>Service listening on all network interfaces</td><td>medium</td><td>open</td><td>Review whether the service needs to listen on all network interfaces and restrict network access where appropriate.</td></tr><tr><td>UPD-001</td><td>Package updates available</td><td>medium</td><td>open</td><td>Review available package updates, identify security-relevant updates, test them, and apply approved updates.</td></tr>
+
+</table>
+
+</div>
+
+</body>
+</html>
