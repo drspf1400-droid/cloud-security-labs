@@ -106,6 +106,9 @@ def test_environment_mismatch_is_rejected(
             "max_critical_findings": 0,
             "max_failed_executions": 0,
             "max_blocked_executions": 0
+        },
+        "rotation_approval": {
+            "required_approvals": 1
         }
     }
 
@@ -136,6 +139,9 @@ def test_negative_limit_is_rejected():
             "max_critical_findings": -1,
             "max_failed_executions": 0,
             "max_blocked_executions": 0
+        },
+        "rotation_approval": {
+            "required_approvals": 1
         }
     }
 
@@ -166,3 +172,63 @@ def test_policy_loader_returns_independent_copy():
         ]
         == 0
     )
+
+
+def test_rotation_approval_policy_by_environment():
+    lab = load_security_gate_policy(
+        "lab"
+    )
+
+    staging = load_security_gate_policy(
+        "staging"
+    )
+
+    production = load_security_gate_policy(
+        "production"
+    )
+
+    assert (
+        lab["rotation_approval"][
+            "required_approvals"
+        ]
+        == 1
+    )
+
+    assert (
+        staging["rotation_approval"][
+            "required_approvals"
+        ]
+        == 1
+    )
+
+    assert (
+        production["rotation_approval"][
+            "required_approvals"
+        ]
+        == 2
+    )
+
+
+def test_invalid_rotation_approval_quorum_is_rejected():
+    policy = {
+        "policy_version": "1.0",
+        "policy_name": "invalid-quorum",
+        "environment": "production",
+        "gate": {
+            "fail_on_assurance_states": [],
+            "fail_on_trust_decisions": [],
+            "max_critical_findings": 0,
+            "max_failed_executions": 0,
+            "max_blocked_executions": 0
+        },
+        "rotation_approval": {
+            "required_approvals": 0
+        }
+    }
+
+    with pytest.raises(
+        SecurityGatePolicyError
+    ):
+        validate_security_gate_policy(
+            policy
+        )

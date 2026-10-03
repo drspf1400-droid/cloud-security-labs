@@ -15,5 +15,8 @@
     "max_critical_findings": 0,
     "max_failed_executions": 0,
     "max_blocked_executions": 0
+  },
+  "rotation_approval": {
+    "required_approvals": 2
   }
 }

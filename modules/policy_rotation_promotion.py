@@ -9,7 +9,7 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 
-from modules.approver_trust_registry import verify_rotation_approval_with_registry
+from modules.approval_quorum import verify_rotation_approval_quorum
 
 from modules.policy_signer_registry import (
     evaluate_policy_manifest_trust,
@@ -255,8 +255,10 @@ def validate_rotation_candidate(
 def promote_policy_rotation(
     *,
     plan,
-    approval,
+    approval=None,
+    approvals=None,
     approver_registry,
+    required_approvals=1,
     current_manifest_path,
     current_registry_path,
     candidate_manifest_path,
@@ -266,21 +268,31 @@ def promote_policy_rotation(
     promoted_by,
     promoted_at=None,
 ):
-    approval_verification = (
-        verify_rotation_approval_with_registry(
+    if approvals is None:
+        approvals = (
+            []
+            if approval is None
+            else [approval]
+        )
+
+    quorum_verification = (
+        verify_rotation_approval_quorum(
             plan,
-            approval,
+            approvals,
             approver_registry,
+            required_approvals=(
+                required_approvals
+            ),
         )
     )
 
-    if not approval_verification.get(
+    if not quorum_verification.get(
         "valid"
     ):
         raise PolicyRotationPromotionError(
-            "Signed rotation approval "
+            "Rotation approval quorum "
             "verification failed: "
-            f"{approval_verification.get('status')}"
+            f"{quorum_verification.get('status')}"
         )
 
     if not promoted_by:
@@ -401,6 +413,28 @@ def promote_policy_rotation(
         "status": "completed",
         "promoted_by": promoted_by,
         "promoted_at": promoted_at,
+        "approval_quorum": {
+            "status": (
+                quorum_verification[
+                    "status"
+                ]
+            ),
+            "required_approvals": (
+                quorum_verification[
+                    "required_approvals"
+                ]
+            ),
+            "valid_approval_count": (
+                quorum_verification[
+                    "valid_approval_count"
+                ]
+            ),
+            "approvers": list(
+                quorum_verification[
+                    "approvers"
+                ]
+            ),
+        },
         "old_key_fingerprint": (
             validation[
                 "old_key_fingerprint"

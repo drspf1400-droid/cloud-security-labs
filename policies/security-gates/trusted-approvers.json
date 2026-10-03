@@ -2,7 +2,7 @@
   "registry_version": "1.0",
   "registry_id": "ROTATION-APPROVER-REGISTRY-001",
   "created_at": "2026-10-03T14:00:00+00:00",
-  "updated_at": "2026-10-03T14:00:00+00:00",
+  "updated_at": "2026-10-03T14:05:00+00:00",
   "approvers": [
     {
       "approver_id": "security-admin",
@@ -12,6 +12,17 @@
       "key_fingerprint": "e7cc33a2dee0aea5cfe7aced79b7681e24b747c5e8904246b55b225ea8542614",
       "status": "active",
       "registered_at": "2026-10-03T14:00:00+00:00",
+      "revoked_at": null,
+      "revocation_reason": null
+    },
+    {
+      "approver_id": "platform-owner",
+      "key_id": "rotation-approver-key-002",
+      "algorithm": "ed25519",
+      "public_key_b64": "kpvfec+Fqo+yEynTWIovXA5DFVJTEReJsk+M7tviPok=",
+      "key_fingerprint": "37aacca73e2b31de5b5ee065ee39d0d0ada35f9b92708546fd5581099be5a29e",
+      "status": "active",
+      "registered_at": "2026-10-03T14:05:00+00:00",
       "revoked_at": null,
       "revocation_reason": null
     }
