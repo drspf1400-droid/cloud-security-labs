@@ -1,0 +1,17 @@
+{
+  "policy_version": "1.0",
+  "policy_name": "staging-security-gate",
+  "environment": "staging",
+  "description": "Pre-production security gate with restricted risk tolerance.",
+  "gate": {
+    "fail_on_assurance_states": [
+      "attention_required"
+    ],
+    "fail_on_trust_decisions": [
+      "reject"
+    ],
+    "max_critical_findings": 0,
+    "max_failed_executions": 0,
+    "max_blocked_executions": 2
+  }
+}

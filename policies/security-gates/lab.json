@@ -1,0 +1,15 @@
+{
+  "policy_version": "1.0",
+  "policy_name": "lab-security-gate",
+  "environment": "lab",
+  "description": "Permissive security gate for controlled lab environments.",
+  "gate": {
+    "fail_on_assurance_states": [],
+    "fail_on_trust_decisions": [
+      "reject"
+    ],
+    "max_critical_findings": 2,
+    "max_failed_executions": 1,
+    "max_blocked_executions": 10
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "policy_version": "1.0",
+  "policy_name": "production-security-gate",
+  "environment": "production",
+  "description": "Strict production deployment security gate.",
+  "gate": {
+    "fail_on_assurance_states": [
+      "attention_required",
+      "partial"
+    ],
+    "fail_on_trust_decisions": [
+      "reject",
+      "unknown"
+    ],
+    "max_critical_findings": 0,
+    "max_failed_executions": 0,
+    "max_blocked_executions": 0
+  }
+}
