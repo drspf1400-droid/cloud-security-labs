@@ -14,6 +14,15 @@ from modules.policy_key_rotation import (
     plan_policy_key_rotation,
 )
 
+from modules.approver_trust_registry import (
+    create_approver_registry,
+    register_approver,
+)
+
+from modules.policy_manifest_signing import (
+    public_key_to_base64,
+)
+
 from modules.rotation_approval import (
     sign_rotation_approval,
 )
@@ -103,22 +112,47 @@ def build_candidate(tmp_path):
         approval_id="PROMOTION-APPROVAL-001",
     )
 
+    approver_registry = (
+        create_approver_registry(
+            created_at=(
+                "2026-10-03T10:00:00+00:00"
+            ),
+            registry_id=(
+                "PROMOTION-APPROVER-REGISTRY-001"
+            ),
+        )
+    )
+
+    approver_registry = register_approver(
+        approver_registry,
+        approver_id="test-approver",
+        key_id="approver-key-001",
+        public_key_b64=(
+            public_key_to_base64(
+                approver_key.public_key()
+            )
+        ),
+        registered_at=(
+            "2026-10-03T10:30:00+00:00"
+        ),
+    )
+
     result = execute_policy_key_rotation(
         plan,
         manifest,
         registry,
         new_key,
         approval=approval,
-        trusted_approver_public_key=(
-            approver_key.public_key()
+        approver_registry=(
+            approver_registry
         ),
     )
 
     result["_test_plan"] = plan
     result["_test_approval"] = approval
     result[
-        "_test_approver_public_key"
-    ] = approver_key.public_key()
+        "_test_approver_registry"
+    ] = approver_registry
 
     candidate_dir = (
         tmp_path
@@ -243,9 +277,9 @@ def test_promotion_replaces_trust_files(
         approval=(
             rotation_result["_test_approval"]
         ),
-        trusted_approver_public_key=(
+        approver_registry=(
             rotation_result[
-                "_test_approver_public_key"
+                "_test_approver_registry"
             ]
         ),
         current_manifest_path=manifest,
@@ -289,9 +323,9 @@ def test_promotion_creates_backups(
         approval=(
             rotation_result["_test_approval"]
         ),
-        trusted_approver_public_key=(
+        approver_registry=(
             rotation_result[
-                "_test_approver_public_key"
+                "_test_approver_registry"
             ]
         ),
         current_manifest_path=manifest,
@@ -338,9 +372,9 @@ def test_promotion_writes_audit_evidence(
         approval=(
             rotation_result["_test_approval"]
         ),
-        trusted_approver_public_key=(
+        approver_registry=(
             rotation_result[
-                "_test_approver_public_key"
+                "_test_approver_registry"
             ]
         ),
         current_manifest_path=manifest,
@@ -418,9 +452,9 @@ def test_invalid_candidate_does_not_modify_current_files(
             approval=(
                 rotation_result["_test_approval"]
             ),
-            trusted_approver_public_key=(
+            approver_registry=(
                 rotation_result[
-                    "_test_approver_public_key"
+                    "_test_approver_registry"
                 ]
             ),
             current_manifest_path=manifest,
@@ -497,9 +531,9 @@ def test_failure_during_promotion_rolls_back(
             approval=(
                 rotation_result["_test_approval"]
             ),
-            trusted_approver_public_key=(
+            approver_registry=(
                 rotation_result[
-                    "_test_approver_public_key"
+                    "_test_approver_registry"
                 ]
             ),
             current_manifest_path=manifest,
@@ -549,9 +583,9 @@ def test_candidate_artifacts_are_not_modified(
         approval=(
             rotation_result["_test_approval"]
         ),
-        trusted_approver_public_key=(
+        approver_registry=(
             rotation_result[
-                "_test_approver_public_key"
+                "_test_approver_registry"
             ]
         ),
         current_manifest_path=manifest,

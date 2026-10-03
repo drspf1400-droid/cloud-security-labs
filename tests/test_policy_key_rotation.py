@@ -147,10 +147,20 @@ def build_plan(
     )
 
 
+
 def signed_approval_args(
     plan,
     approved_by="security-admin",
 ):
+    from modules.approver_trust_registry import (
+        create_approver_registry,
+        register_approver,
+    )
+
+    from modules.policy_manifest_signing import (
+        public_key_to_base64,
+    )
+
     approver_key = (
         Ed25519PrivateKey.generate()
     )
@@ -166,11 +176,32 @@ def signed_approval_args(
         approval_id="APPROVAL-TEST-001",
     )
 
+    registry = create_approver_registry(
+        created_at=(
+            "2026-10-03T10:00:00+00:00"
+        ),
+        registry_id=(
+            "APPROVER-REGISTRY-TEST-001"
+        ),
+    )
+
+    registry = register_approver(
+        registry,
+        approver_id=approved_by,
+        key_id="approver-key-001",
+        public_key_b64=(
+            public_key_to_base64(
+                approver_key.public_key()
+            )
+        ),
+        registered_at=(
+            "2026-10-03T10:30:00+00:00"
+        ),
+    )
+
     return {
         "approval": approval,
-        "trusted_approver_public_key": (
-            approver_key.public_key()
-        ),
+        "approver_registry": registry,
     }
 
 
@@ -283,7 +314,7 @@ def test_execution_requires_human_approval():
             registry,
             new_key["private"],
             approval={},
-            trusted_approver_public_key=(
+            approver_registry=(
                 Ed25519PrivateKey
                 .generate()
                 .public_key()

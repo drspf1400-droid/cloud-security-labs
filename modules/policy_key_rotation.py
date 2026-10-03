@@ -2,7 +2,7 @@
 
 from copy import deepcopy
 
-from modules.rotation_approval import verify_rotation_approval
+from modules.approver_trust_registry import verify_rotation_approval_with_registry
 from uuid import uuid4
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (
@@ -190,7 +190,7 @@ def execute_policy_key_rotation(
     new_private_key,
     *,
     approval,
-    trusted_approver_public_key,
+    approver_registry,
 ):
     """
     Execute an approved rotation plan.
@@ -209,12 +209,10 @@ def execute_policy_key_rotation(
         )
 
     approval_verification = (
-        verify_rotation_approval(
+        verify_rotation_approval_with_registry(
             plan,
             approval,
-            trusted_public_key=(
-                trusted_approver_public_key
-            ),
+            approver_registry,
         )
     )
 

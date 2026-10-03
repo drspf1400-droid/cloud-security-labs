@@ -284,10 +284,10 @@ def build_parser():
     )
 
     execute_parser.add_argument(
-        "--approver-public-key",
+        "--approver-registry",
         required=True,
         help=(
-            "Trusted Ed25519 approver "
+            "Trusted approver registry "
             "public key"
         ),
     )
@@ -361,10 +361,10 @@ def build_parser():
     )
 
     promote_parser.add_argument(
-        "--approver-public-key",
+        "--approver-registry",
         required=True,
         help=(
-            "Trusted Ed25519 approver "
+            "Trusted approver registry "
             "public key"
         ),
     )
@@ -508,10 +508,8 @@ def command_execute(args):
         args.approval
     )
 
-    approver_public_key = (
-        load_public_key(
-            args.approver_public_key
-        )
+    approver_registry = load_json(
+        args.approver_registry
     )
 
     manifest = load_json(
@@ -532,8 +530,8 @@ def command_execute(args):
         registry,
         new_private_key,
         approval=approval,
-        trusted_approver_public_key=(
-            approver_public_key
+        approver_registry=(
+            approver_registry
         ),
     )
 
@@ -647,17 +645,15 @@ def command_promote(args):
         args.approval
     )
 
-    approver_public_key = (
-        load_public_key(
-            args.approver_public_key
-        )
+    approver_registry = load_json(
+        args.approver_registry
     )
 
     audit = promote_policy_rotation(
         plan=plan,
         approval=approval,
-        trusted_approver_public_key=(
-            approver_public_key
+        approver_registry=(
+            approver_registry
         ),
         current_manifest_path=(
             args.current_manifest
