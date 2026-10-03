@@ -327,3 +327,124 @@ def test_cli_gate_pass_returns_zero(tmp_path):
     assert gate["passed"] is True
     assert gate["decision"] == "pass"
     assert gate["exit_code"] == 0
+
+
+def test_cli_lab_policy_can_allow_demo_assessment(
+    tmp_path,
+):
+    output_dir = tmp_path / "lab-policy"
+
+    result = run_cli(
+        "--assessment",
+        ROOT / "schemas/finding-example.json",
+        "--trust-report",
+        ROOT / "report/trust_decision_report.json",
+        "--output-dir",
+        output_dir,
+        "--environment",
+        "lab",
+        "--enforce-gate",
+    )
+
+    assert result.returncode == 0
+    assert "Security gate: pass" in result.stdout
+    assert "Gate environment: lab" in result.stdout
+
+    gate = json.loads(
+        (
+            output_dir
+            / "security_gate_result.json"
+        ).read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert gate["passed"] is True
+
+    assert (
+        gate["policy_context"]["environment"]
+        == "lab"
+    )
+
+    assert (
+        gate["policy_context"]["policy_name"]
+        == "lab-security-gate"
+    )
+
+
+def test_cli_production_policy_blocks_demo_assessment(
+    tmp_path,
+):
+    output_dir = tmp_path / "production-policy"
+
+    result = run_cli(
+        "--assessment",
+        ROOT / "schemas/finding-example.json",
+        "--trust-report",
+        ROOT / "report/trust_decision_report.json",
+        "--output-dir",
+        output_dir,
+        "--environment",
+        "production",
+        "--enforce-gate",
+    )
+
+    assert result.returncode == 2
+    assert "Security gate: fail" in result.stdout
+    assert (
+        "Gate environment: production"
+        in result.stdout
+    )
+
+    gate = json.loads(
+        (
+            output_dir
+            / "security_gate_result.json"
+        ).read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert gate["passed"] is False
+
+    assert (
+        gate["policy_context"]["environment"]
+        == "production"
+    )
+
+    assert (
+        gate["policy_context"]["policy_name"]
+        == "production-security-gate"
+    )
+
+
+def test_cli_defaults_to_production_gate_policy(
+    tmp_path,
+):
+    output_dir = tmp_path / "default-policy"
+
+    result = run_cli(
+        "--assessment",
+        ROOT / "schemas/finding-example.json",
+        "--trust-report",
+        ROOT / "report/trust_decision_report.json",
+        "--output-dir",
+        output_dir,
+        "--enforce-gate",
+    )
+
+    assert result.returncode == 2
+
+    gate = json.loads(
+        (
+            output_dir
+            / "security_gate_result.json"
+        ).read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert (
+        gate["policy_context"]["environment"]
+        == "production"
+    )

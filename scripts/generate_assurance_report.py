@@ -21,6 +21,11 @@ from modules.security_gate import (
     evaluate_security_gate,
 )
 
+from modules.security_gate_policy import (
+    SecurityGatePolicyError,
+    load_security_gate_policy,
+)
+
 
 def load_json(path):
     path = Path(path)
@@ -106,8 +111,22 @@ def parse_args():
         "--enforce-gate",
         action="store_true",
         help=(
-            "Evaluate the default CI/CD security gate "
-            "and exit with code 2 when the gate fails"
+            "Evaluate the CI/CD security gate and "
+            "exit with code 2 when the gate fails"
+        ),
+    )
+
+    parser.add_argument(
+        "--environment",
+        choices=[
+            "lab",
+            "staging",
+            "production",
+        ],
+        default="production",
+        help=(
+            "Security gate policy environment "
+            "(default: production)"
         ),
     )
 
@@ -166,9 +185,36 @@ def main():
         gate_result = None
 
         if args.enforce_gate:
-            gate_result = evaluate_security_gate(
-                report
+            loaded_policy = (
+                load_security_gate_policy(
+                    args.environment
+                )
             )
+
+            gate_result = evaluate_security_gate(
+                report,
+                loaded_policy["gate"],
+            )
+
+            gate_result[
+                "policy_context"
+            ] = {
+                "policy_version": (
+                    loaded_policy["document"]
+                    .get("policy_version")
+                ),
+                "policy_name": (
+                    loaded_policy["document"]
+                    .get("policy_name")
+                ),
+                "environment": (
+                    loaded_policy["document"]
+                    .get("environment")
+                ),
+                "policy_path": (
+                    loaded_policy["path"]
+                ),
+            }
 
             gate_path = (
                 output_dir
@@ -187,6 +233,7 @@ def main():
     except (
         FileNotFoundError,
         ValueError,
+        SecurityGatePolicyError,
         OSError,
     ) as exc:
         print(
@@ -219,6 +266,16 @@ def main():
         print(
             "Security gate: "
             f"{gate_result.get('decision')}"
+        )
+
+        print(
+            "Gate environment: "
+            f"{args.environment}"
+        )
+
+        print(
+            "Gate policy: "
+            f"{gate_result['policy_context'].get('policy_name')}"
         )
 
         print(

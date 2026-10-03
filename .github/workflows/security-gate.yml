@@ -83,6 +83,7 @@ jobs:
             --output-dir ci-assurance-pass \
             --report-id CI-GATE-PASS \
             --generated-at 2026-10-03T10:00:00+00:00 \
+            --environment production \
             --enforce-gate
 
       - name: Verify unsafe assessment is blocked
@@ -95,6 +96,7 @@ jobs:
             --output-dir ci-assurance-blocked \
             --report-id CI-GATE-BLOCKED \
             --generated-at 2026-10-03T10:00:00+00:00 \
+            --environment production \
             --enforce-gate
 
           exit_code=$?
@@ -109,6 +111,52 @@ jobs:
           fi
 
           echo "Unsafe assessment correctly blocked"
+
+      - name: Verify production policy context
+        run: |
+          python - <<'PYCODE'
+          import json
+          from pathlib import Path
+
+          paths = [
+              Path(
+                  "ci-assurance-pass/"
+                  "security_gate_result.json"
+              ),
+              Path(
+                  "ci-assurance-blocked/"
+                  "security_gate_result.json"
+              ),
+          ]
+
+          for path in paths:
+              result = json.loads(
+                  path.read_text(
+                      encoding="utf-8"
+                  )
+              )
+
+              context = result.get(
+                  "policy_context",
+                  {},
+              )
+
+              assert (
+                  context.get("environment")
+                  == "production"
+              )
+
+              assert (
+                  context.get("policy_name")
+                  == "production-security-gate"
+              )
+
+              print(
+                  path,
+                  "->",
+                  context.get("policy_name"),
+              )
+          PYCODE
 
       - name: Show gate decisions
         if: always()
