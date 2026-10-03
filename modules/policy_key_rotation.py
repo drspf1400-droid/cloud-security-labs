@@ -2,7 +2,7 @@
 
 from copy import deepcopy
 
-from modules.approver_trust_registry import verify_rotation_approval_with_registry
+from modules.approval_quorum import verify_rotation_approval_quorum
 from uuid import uuid4
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (
@@ -189,8 +189,10 @@ def execute_policy_key_rotation(
     registry,
     new_private_key,
     *,
-    approval,
+    approval=None,
+    approvals=None,
     approver_registry,
+    required_approvals=1,
 ):
     """
     Execute an approved rotation plan.
@@ -208,28 +210,61 @@ def execute_policy_key_rotation(
             "Ed25519PrivateKey"
         )
 
-    approval_verification = (
-        verify_rotation_approval_with_registry(
+    if approvals is None:
+        approvals = (
+            []
+            if approval is None
+            else [approval]
+        )
+
+    quorum_verification = (
+        verify_rotation_approval_quorum(
             plan,
-            approval,
+            approvals,
             approver_registry,
+            required_approvals=(
+                required_approvals
+            ),
         )
     )
 
-    if not approval_verification.get(
+    if not quorum_verification.get(
         "valid"
     ):
         raise PolicyKeyRotationError(
-            "Signed rotation approval "
+            "Rotation approval quorum "
             "verification failed: "
-            f"{approval_verification.get('status')}"
+            f"{quorum_verification.get('status')}"
         )
 
     approved_by = (
-        approval_verification[
-            "approved_by"
-        ]
+        quorum_verification[
+            "approvers"
+        ][0]
     )
+
+    approval_quorum = {
+        "status": (
+            quorum_verification[
+                "status"
+            ]
+        ),
+        "required_approvals": (
+            quorum_verification[
+                "required_approvals"
+            ]
+        ),
+        "valid_approval_count": (
+            quorum_verification[
+                "valid_approval_count"
+            ]
+        ),
+        "approvers": list(
+            quorum_verification[
+                "approvers"
+            ]
+        ),
+    }
 
     plan_source = deepcopy(plan)
     manifest_source = deepcopy(manifest)
@@ -382,6 +417,9 @@ def execute_policy_key_rotation(
         ),
         "timestamp": rotated_at,
         "approved_by": approved_by,
+        "approval_quorum": deepcopy(
+            approval_quorum
+        ),
         "source_manifest_id": (
             plan_source[
                 "source_manifest_id"
@@ -418,6 +456,9 @@ def execute_policy_key_rotation(
         ),
         "status": "completed",
         "approved_by": approved_by,
+        "approval_quorum": deepcopy(
+            approval_quorum
+        ),
         "rotated_at": rotated_at,
         "old_signer": deepcopy(
             old_signer

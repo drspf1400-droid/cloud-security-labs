@@ -28,6 +28,10 @@ from modules.policy_rotation_promotion import (
     promote_policy_rotation,
 )
 
+from modules.security_gate_policy import (
+    load_security_gate_policy,
+)
+
 from modules.rotation_approval import (
     RotationApprovalError,
     sign_rotation_approval,
@@ -278,8 +282,35 @@ def build_parser():
     execute_parser.add_argument(
         "--approval",
         required=True,
+        action="append",
+        metavar="FILE",
         help=(
-            "Signed rotation approval artifact"
+            "Signed rotation approval artifact. "
+            "Repeat for multiple approvers."
+        ),
+    )
+
+    execute_parser.add_argument(
+        "--required-approvals",
+        type=int,
+        default=1,
+        help=(
+            "Minimum number of unique trusted "
+            "approvals required"
+        ),
+    )
+
+    execute_parser.add_argument(
+        "--environment",
+        choices=(
+            "lab",
+            "staging",
+            "production",
+        ),
+        default="production",
+        help=(
+            "Security policy environment. "
+            "Defaults to production."
         ),
     )
 
@@ -287,8 +318,7 @@ def build_parser():
         "--approver-registry",
         required=True,
         help=(
-            "Trusted approver registry "
-            "public key"
+            "Trusted approver registry"
         ),
     )
 
@@ -355,8 +385,35 @@ def build_parser():
     promote_parser.add_argument(
         "--approval",
         required=True,
+        action="append",
+        metavar="FILE",
         help=(
-            "Signed rotation approval artifact"
+            "Signed rotation approval artifact. "
+            "Repeat for multiple approvers."
+        ),
+    )
+
+    promote_parser.add_argument(
+        "--required-approvals",
+        type=int,
+        default=1,
+        help=(
+            "Minimum number of unique trusted "
+            "approvals required"
+        ),
+    )
+
+    promote_parser.add_argument(
+        "--environment",
+        choices=(
+            "lab",
+            "staging",
+            "production",
+        ),
+        default="production",
+        help=(
+            "Security policy environment. "
+            "Defaults to production."
         ),
     )
 
@@ -364,8 +421,7 @@ def build_parser():
         "--approver-registry",
         required=True,
         help=(
-            "Trusted approver registry "
-            "public key"
+            "Trusted approver registry"
         ),
     )
 
@@ -504,12 +560,30 @@ def command_execute(args):
         args.plan
     )
 
-    approval = load_json(
-        args.approval
-    )
+    approvals = [
+        load_json(path)
+        for path in args.approval
+    ]
 
     approver_registry = load_json(
         args.approver_registry
+    )
+
+    environment_policy = (
+        load_security_gate_policy(
+            args.environment
+        )
+    )
+
+    policy_required_approvals = (
+        environment_policy[
+            "rotation_approval"
+        ]["required_approvals"]
+    )
+
+    effective_required_approvals = max(
+        policy_required_approvals,
+        args.required_approvals,
     )
 
     manifest = load_json(
@@ -529,9 +603,12 @@ def command_execute(args):
         manifest,
         registry,
         new_private_key,
-        approval=approval,
+        approvals=approvals,
         approver_registry=(
             approver_registry
+        ),
+        required_approvals=(
+            effective_required_approvals
         ),
     )
 
@@ -590,6 +667,20 @@ def command_execute(args):
         "approved_by": (
             result["approved_by"]
         ),
+        "approval_quorum": (
+            result["approval_quorum"]
+        ),
+        "policy_context": {
+            "environment": (
+                args.environment
+            ),
+            "policy_required_approvals": (
+                policy_required_approvals
+            ),
+            "effective_required_approvals": (
+                effective_required_approvals
+            ),
+        },
         "rotated_at": (
             result["rotated_at"]
         ),
@@ -641,19 +732,40 @@ def command_promote(args):
         args.plan
     )
 
-    approval = load_json(
-        args.approval
-    )
+    approvals = [
+        load_json(path)
+        for path in args.approval
+    ]
 
     approver_registry = load_json(
         args.approver_registry
     )
 
+    environment_policy = (
+        load_security_gate_policy(
+            args.environment
+        )
+    )
+
+    policy_required_approvals = (
+        environment_policy[
+            "rotation_approval"
+        ]["required_approvals"]
+    )
+
+    effective_required_approvals = max(
+        policy_required_approvals,
+        args.required_approvals,
+    )
+
     audit = promote_policy_rotation(
         plan=plan,
-        approval=approval,
+        approvals=approvals,
         approver_registry=(
             approver_registry
+        ),
+        required_approvals=(
+            effective_required_approvals
         ),
         current_manifest_path=(
             args.current_manifest

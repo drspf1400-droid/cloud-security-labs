@@ -27,6 +27,10 @@ REQUIRED_GATE_FIELDS = {
     "max_blocked_executions",
 }
 
+REQUIRED_ROTATION_APPROVAL_FIELDS = {
+    "required_approvals",
+}
+
 
 class SecurityGatePolicyError(ValueError):
     pass
@@ -65,6 +69,21 @@ def _validate_limit(
         raise SecurityGatePolicyError(
             f"{field_name} must be a "
             "non-negative integer or null"
+        )
+
+
+def _validate_positive_integer(
+    value,
+    field_name,
+):
+    if (
+        not isinstance(value, int)
+        or isinstance(value, bool)
+        or value < 1
+    ):
+        raise SecurityGatePolicyError(
+            f"{field_name} must be a "
+            "positive integer"
         )
 
 
@@ -146,6 +165,43 @@ def validate_security_gate_policy(
         "max_blocked_executions",
     )
 
+    rotation_approval = document.get(
+        "rotation_approval"
+    )
+
+    if not isinstance(
+        rotation_approval,
+        dict,
+    ):
+        raise SecurityGatePolicyError(
+            "rotation_approval must be "
+            "an object"
+        )
+
+    missing_rotation_fields = (
+        REQUIRED_ROTATION_APPROVAL_FIELDS
+        - set(rotation_approval)
+    )
+
+    if missing_rotation_fields:
+        raise SecurityGatePolicyError(
+            "Missing rotation approval "
+            "policy fields: "
+            + ", ".join(
+                sorted(
+                    missing_rotation_fields
+                )
+            )
+        )
+
+    _validate_positive_integer(
+        rotation_approval[
+            "required_approvals"
+        ],
+        "rotation_approval."
+        "required_approvals",
+    )
+
     return True
 
 
@@ -198,6 +254,11 @@ def load_security_gate_policy(
         "document": deepcopy(document),
         "gate": deepcopy(
             document["gate"]
+        ),
+        "rotation_approval": deepcopy(
+            document[
+                "rotation_approval"
+            ]
         ),
         "path": str(policy_path),
     }

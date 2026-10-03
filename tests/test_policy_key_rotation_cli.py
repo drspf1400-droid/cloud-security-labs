@@ -33,6 +33,24 @@ REGISTRY = (
 
 
 def run_cli(*args):
+    # Default legacy CLI tests to lab so their
+    # one-approver fixtures remain valid. Tests
+    # can explicitly request production.
+    args = list(args)
+
+    if (
+        args
+        and args[0] in {
+            "execute",
+            "promote",
+        }
+        and "--environment" not in args
+    ):
+        args[1:1] = [
+            "--environment",
+            "lab",
+        ]
+
     return subprocess.run(
         [
             sys.executable,
@@ -1337,4 +1355,98 @@ def test_cli_approval_rejects_same_person(
     assert (
         "Separation of duties violation"
         in approval.stderr
+    )
+
+
+def test_execute_rejects_single_approval_when_quorum_is_two(
+    tmp_path,
+):
+    result, key_path, plan_path, _ = (
+        create_plan(tmp_path)
+    )
+
+    assert result.returncode == 0
+
+    (
+        approval_path,
+        approver_registry,
+    ) = create_cli_signed_approval(
+        tmp_path,
+        plan_path,
+        stem="quorum-two",
+    )
+
+    execute = run_cli(
+        "execute",
+        "--plan",
+        plan_path,
+        "--manifest",
+        MANIFEST,
+        "--registry",
+        REGISTRY,
+        "--new-private-key",
+        key_path,
+        "--approval",
+        approval_path,
+        "--approver-registry",
+        approver_registry,
+        "--required-approvals",
+        "2",
+        "--output-dir",
+        tmp_path / "candidate",
+    )
+
+    assert execute.returncode == 1
+
+    assert (
+        "quorum_not_satisfied"
+        in execute.stderr
+    )
+
+
+def test_production_quorum_policy_cannot_be_lowered_by_cli(
+    tmp_path,
+):
+    result, key_path, plan_path, _ = (
+        create_plan(tmp_path)
+    )
+
+    assert result.returncode == 0
+
+    (
+        approval_path,
+        approver_registry,
+    ) = create_cli_signed_approval(
+        tmp_path,
+        plan_path,
+        stem="production-quorum",
+    )
+
+    execute = run_cli(
+        "execute",
+        "--environment",
+        "production",
+        "--plan",
+        plan_path,
+        "--manifest",
+        MANIFEST,
+        "--registry",
+        REGISTRY,
+        "--new-private-key",
+        key_path,
+        "--approval",
+        approval_path,
+        "--approver-registry",
+        approver_registry,
+        "--required-approvals",
+        "1",
+        "--output-dir",
+        tmp_path / "candidate",
+    )
+
+    assert execute.returncode == 1
+
+    assert (
+        "quorum_not_satisfied"
+        in execute.stderr
     )
