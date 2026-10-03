@@ -1,0 +1,23 @@
+{
+  "manifest_version": "1.0",
+  "manifest_id": "SECURITY-GATE-POLICY-MANIFEST-001",
+  "created_at": "2026-10-03T10:00:00+00:00",
+  "algorithm": "sha256",
+  "policies": {
+    "lab": {
+      "policy_name": "lab-security-gate",
+      "policy_version": "1.0",
+      "fingerprint": "ad2d9f24ac5870f03f5237238eadf317d00372aa26081fbe8521a9e05211dc36"
+    },
+    "production": {
+      "policy_name": "production-security-gate",
+      "policy_version": "1.0",
+      "fingerprint": "3a5e38cc7799eb200c5fcf10b19b92d32cb8f1198523896340816e80e118ce84"
+    },
+    "staging": {
+      "policy_name": "staging-security-gate",
+      "policy_version": "1.0",
+      "fingerprint": "d287b04352241e92043065e5de7da1bba15469e5beb938ab263e39e2f78df02f"
+    }
+  }
+}
