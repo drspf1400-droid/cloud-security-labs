@@ -61,6 +61,77 @@ def create_private_key(path):
     return key
 
 
+def create_cli_signed_approval(
+    tmp_path,
+    plan_path,
+    *,
+    stem,
+):
+    from cryptography.hazmat.primitives.serialization import (
+        Encoding,
+        PublicFormat,
+        load_pem_private_key,
+    )
+
+    private_key_path = (
+        tmp_path
+        / f"{stem}-approver-private.pem"
+    )
+
+    public_key_path = (
+        tmp_path
+        / f"{stem}-approver-public.pem"
+    )
+
+    approval_path = (
+        tmp_path
+        / f"{stem}-approval.json"
+    )
+
+    create_private_key(
+        private_key_path
+    )
+
+    private_key = (
+        load_pem_private_key(
+            private_key_path.read_bytes(),
+            password=None,
+        )
+    )
+
+    public_key_path.write_bytes(
+        private_key.public_key().public_bytes(
+            Encoding.PEM,
+            PublicFormat.SubjectPublicKeyInfo,
+        )
+    )
+
+    approval = run_cli(
+        "approve",
+        "--plan",
+        plan_path,
+        "--approver-private-key",
+        private_key_path,
+        "--approved-by",
+        "security-admin",
+        "--approved-at",
+        "2026-10-04T09:30:00+00:00",
+        "--approval-id",
+        f"{stem.upper()}-APPROVAL-001",
+        "--output",
+        approval_path,
+    )
+
+    assert approval.returncode == 0, (
+        approval.stderr
+    )
+
+    return (
+        approval_path,
+        public_key_path,
+    )
+
+
 def create_plan(tmp_path):
     key_path = (
         tmp_path
@@ -94,6 +165,8 @@ def create_plan(tmp_path):
         REGISTRY,
         "--new-private-key",
         key_path,
+        "--initiated-by",
+        "security-operator",
         "--new-signer-id",
         "security-policy-authority",
         "--new-key-id",
@@ -107,6 +180,16 @@ def create_plan(tmp_path):
         "--output",
         plan_path,
     )
+
+    if (
+        result.returncode == 0
+        and plan_path.exists()
+    ):
+        create_cli_signed_approval(
+            tmp_path,
+            plan_path,
+            stem="execute",
+        )
 
     return (
         result,
@@ -167,7 +250,8 @@ def test_plan_contains_no_private_key(
     assert "begin private key" not in plan_text
 
 
-def test_execute_requires_explicit_approval(
+
+def test_execute_requires_signed_approval(
     tmp_path,
 ):
     result, key_path, plan_path, _ = (
@@ -186,19 +270,16 @@ def test_execute_requires_explicit_approval(
         REGISTRY,
         "--new-private-key",
         key_path,
-        "--approved-by",
-        "security-admin",
         "--output-dir",
-        tmp_path / "output",
+        tmp_path / "candidate",
     )
 
-    assert execute.returncode == 6
+    assert execute.returncode == 2
 
     assert (
-        "explicit --approve is required"
+        "--approval"
         in execute.stderr
     )
-
 
 def test_approved_execution_creates_artifacts(
     tmp_path,
@@ -224,9 +305,10 @@ def test_approved_execution_creates_artifacts(
         REGISTRY,
         "--new-private-key",
         key_path,
-        "--approved-by",
-        "security-admin",
-        "--approve",
+        "--approval",
+        tmp_path / "execute-approval.json",
+        "--approver-public-key",
+        tmp_path / "execute-approver-public.pem",
         "--output-dir",
         output_dir,
     )
@@ -270,9 +352,10 @@ def test_rotated_registry_revokes_old_signer(
         REGISTRY,
         "--new-private-key",
         key_path,
-        "--approved-by",
-        "security-admin",
-        "--approve",
+        "--approval",
+        tmp_path / "execute-approval.json",
+        "--approver-public-key",
+        tmp_path / "execute-approver-public.pem",
         "--output-dir",
         output_dir,
     )
@@ -328,9 +411,10 @@ def test_rotated_manifest_uses_new_key(
         REGISTRY,
         "--new-private-key",
         key_path,
-        "--approved-by",
-        "security-admin",
-        "--approve",
+        "--approval",
+        tmp_path / "execute-approval.json",
+        "--approver-public-key",
+        tmp_path / "execute-approver-public.pem",
         "--output-dir",
         output_dir,
     )
@@ -376,9 +460,10 @@ def test_rotation_result_records_approval(
         REGISTRY,
         "--new-private-key",
         key_path,
-        "--approved-by",
-        "security-admin",
-        "--approve",
+        "--approval",
+        tmp_path / "execute-approval.json",
+        "--approver-public-key",
+        tmp_path / "execute-approver-public.pem",
         "--output-dir",
         output_dir,
     )
@@ -412,6 +497,7 @@ def test_rotation_result_records_approval(
     )
 
 
+
 def prepare_promotion_state(tmp_path):
     import shutil
 
@@ -421,6 +507,25 @@ def prepare_promotion_state(tmp_path):
 
     assert result.returncode == 0
 
+    promotion_plan = (
+        tmp_path
+        / "promotion-plan.json"
+    )
+
+    shutil.copy(
+        plan_path,
+        promotion_plan,
+    )
+
+    (
+        approval_path,
+        approver_public_key,
+    ) = create_cli_signed_approval(
+        tmp_path,
+        promotion_plan,
+        stem="promotion",
+    )
+
     candidate_dir = (
         tmp_path
         / "candidate"
@@ -429,21 +534,24 @@ def prepare_promotion_state(tmp_path):
     execute = run_cli(
         "execute",
         "--plan",
-        plan_path,
+        promotion_plan,
         "--manifest",
         MANIFEST,
         "--registry",
         REGISTRY,
         "--new-private-key",
         key_path,
-        "--approved-by",
-        "security-admin",
-        "--approve",
+        "--approval",
+        approval_path,
+        "--approver-public-key",
+        approver_public_key,
         "--output-dir",
         candidate_dir,
     )
 
-    assert execute.returncode == 0
+    assert execute.returncode == 0, (
+        execute.stderr
+    )
 
     current_dir = (
         tmp_path
@@ -479,7 +587,7 @@ def prepare_promotion_state(tmp_path):
     )
 
 
-def test_promote_requires_explicit_approval(
+def test_promote_requires_signed_approval(
     tmp_path,
 ):
     (
@@ -505,18 +613,242 @@ def test_promote_requires_explicit_approval(
         "--backup-dir",
         tmp_path / "backup",
         "--audit-output",
-        tmp_path / "promotion-audit.json",
+        tmp_path / "audit.json",
         "--promoted-by",
         "security-admin",
     )
 
-    assert result.returncode == 6
+    assert result.returncode == 2
 
     assert (
-        "explicit --approve is required"
+        "--approval"
         in result.stderr
     )
 
+def test_promote_replaces_current_files(
+    tmp_path,
+):
+    (
+        candidate_dir,
+        current_manifest,
+        current_registry,
+    ) = prepare_promotion_state(
+        tmp_path
+    )
+
+    candidate_manifest = (
+        candidate_dir
+        / "trusted-manifest.json"
+    )
+
+    candidate_registry = (
+        candidate_dir
+        / "trusted-policy-signers.json"
+    )
+
+    result = run_cli(
+        "promote",
+        "--current-manifest",
+        current_manifest,
+        "--current-registry",
+        current_registry,
+        "--candidate-manifest",
+        candidate_manifest,
+        "--candidate-registry",
+        candidate_registry,
+        "--backup-dir",
+        tmp_path / "backup",
+        "--audit-output",
+        tmp_path / "promotion-audit.json",
+        "--promoted-by",
+        "security-admin",
+        "--promoted-at",
+        "2026-10-04T11:00:00+00:00",
+        "--plan",
+        tmp_path / "promotion-plan.json",
+        "--approval",
+        tmp_path / "promotion-approval.json",
+        "--approver-public-key",
+        tmp_path / "promotion-approver-public.pem",
+    )
+
+    assert result.returncode == 0
+
+    assert (
+        "Policy key rotation promoted"
+        in result.stdout
+    )
+
+    assert (
+        current_manifest.read_bytes()
+        == candidate_manifest.read_bytes()
+    )
+
+    assert (
+        current_registry.read_bytes()
+        == candidate_registry.read_bytes()
+    )
+
+
+def test_promote_creates_audit_and_backups(
+    tmp_path,
+):
+    (
+        candidate_dir,
+        current_manifest,
+        current_registry,
+    ) = prepare_promotion_state(
+        tmp_path
+    )
+
+    backup_dir = tmp_path / "backup"
+
+    audit_path = (
+        tmp_path
+        / "promotion-audit.json"
+    )
+
+    result = run_cli(
+        "promote",
+        "--current-manifest",
+        current_manifest,
+        "--current-registry",
+        current_registry,
+        "--candidate-manifest",
+        candidate_dir
+        / "trusted-manifest.json",
+        "--candidate-registry",
+        candidate_dir
+        / "trusted-policy-signers.json",
+        "--backup-dir",
+        backup_dir,
+        "--audit-output",
+        audit_path,
+        "--promoted-by",
+        "security-admin",
+        "--plan",
+        tmp_path / "promotion-plan.json",
+        "--approval",
+        tmp_path / "promotion-approval.json",
+        "--approver-public-key",
+        tmp_path / "promotion-approver-public.pem",
+    )
+
+    assert result.returncode == 0
+    assert audit_path.exists()
+
+    assert (
+        backup_dir
+        / "trusted-manifest.before-rotation.json"
+    ).exists()
+
+    assert (
+        backup_dir
+        / "trusted-policy-signers.before-rotation.json"
+    ).exists()
+
+    audit = json.loads(
+        audit_path.read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert audit["status"] == "completed"
+
+    assert (
+        audit["old_manifest_trust_basis"]
+        == "historical_trust"
+    )
+
+
+def test_promote_reports_new_registry_fingerprint(
+    tmp_path,
+):
+    (
+        candidate_dir,
+        current_manifest,
+        current_registry,
+    ) = prepare_promotion_state(
+        tmp_path
+    )
+
+    result = run_cli(
+        "promote",
+        "--current-manifest",
+        current_manifest,
+        "--current-registry",
+        current_registry,
+        "--candidate-manifest",
+        candidate_dir
+        / "trusted-manifest.json",
+        "--candidate-registry",
+        candidate_dir
+        / "trusted-policy-signers.json",
+        "--backup-dir",
+        tmp_path / "backup",
+        "--audit-output",
+        tmp_path / "audit.json",
+        "--promoted-by",
+        "security-admin",
+        "--plan",
+        tmp_path / "promotion-plan.json",
+        "--approval",
+        tmp_path / "promotion-approval.json",
+        "--approver-public-key",
+        tmp_path / "promotion-approver-public.pem",
+    )
+
+    assert result.returncode == 0
+
+    assert (
+        "New registry SHA-256:"
+        in result.stdout
+    )
+
+
+def test_promote_requires_trusted_approver_public_key(
+    tmp_path,
+):
+    (
+        candidate_dir,
+        current_manifest,
+        current_registry,
+    ) = prepare_promotion_state(
+        tmp_path
+    )
+
+    result = run_cli(
+        "promote",
+        "--plan",
+        tmp_path
+        / "promotion-plan.json",
+        "--approval",
+        tmp_path
+        / "promotion-approval.json",
+        "--current-manifest",
+        current_manifest,
+        "--current-registry",
+        current_registry,
+        "--candidate-manifest",
+        candidate_dir
+        / "trusted-manifest.json",
+        "--candidate-registry",
+        candidate_dir
+        / "trusted-policy-signers.json",
+        "--backup-dir",
+        tmp_path / "backup",
+        "--audit-output",
+        tmp_path / "audit.json",
+        "--promoted-by",
+        "security-admin",
+    )
+
+    assert result.returncode == 2
+
+    assert (
+        "--approver-public-key"
+        in result.stderr
+    )
 
 def test_promote_replaces_current_files(
     tmp_path,
@@ -684,112 +1016,6 @@ def test_promote_reports_new_registry_fingerprint(
     )
 
 
-def prepare_promotion_state(tmp_path):
-    import shutil
-
-    result, key_path, plan_path, _ = (
-        create_plan(tmp_path)
-    )
-
-    assert result.returncode == 0
-
-    candidate_dir = (
-        tmp_path
-        / "candidate"
-    )
-
-    execute = run_cli(
-        "execute",
-        "--plan",
-        plan_path,
-        "--manifest",
-        MANIFEST,
-        "--registry",
-        REGISTRY,
-        "--new-private-key",
-        key_path,
-        "--approved-by",
-        "security-admin",
-        "--approve",
-        "--output-dir",
-        candidate_dir,
-    )
-
-    assert execute.returncode == 0
-
-    current_dir = (
-        tmp_path
-        / "current"
-    )
-
-    current_dir.mkdir()
-
-    current_manifest = (
-        current_dir
-        / "trusted-manifest.json"
-    )
-
-    current_registry = (
-        current_dir
-        / "trusted-policy-signers.json"
-    )
-
-    shutil.copy(
-        MANIFEST,
-        current_manifest,
-    )
-
-    shutil.copy(
-        REGISTRY,
-        current_registry,
-    )
-
-    return (
-        candidate_dir,
-        current_manifest,
-        current_registry,
-    )
-
-
-def test_promote_requires_explicit_approval(
-    tmp_path,
-):
-    (
-        candidate_dir,
-        current_manifest,
-        current_registry,
-    ) = prepare_promotion_state(
-        tmp_path
-    )
-
-    result = run_cli(
-        "promote",
-        "--current-manifest",
-        current_manifest,
-        "--current-registry",
-        current_registry,
-        "--candidate-manifest",
-        candidate_dir
-        / "trusted-manifest.json",
-        "--candidate-registry",
-        candidate_dir
-        / "trusted-policy-signers.json",
-        "--backup-dir",
-        tmp_path / "backup",
-        "--audit-output",
-        tmp_path / "promotion-audit.json",
-        "--promoted-by",
-        "security-admin",
-    )
-
-    assert result.returncode == 6
-
-    assert (
-        "explicit --approve is required"
-        in result.stderr
-    )
-
-
 def test_promote_replaces_current_files(
     tmp_path,
 ):
@@ -829,7 +1055,12 @@ def test_promote_replaces_current_files(
         "security-admin",
         "--promoted-at",
         "2026-10-04T11:00:00+00:00",
-        "--approve",
+        "--plan",
+        tmp_path / "promotion-plan.json",
+        "--approval",
+        tmp_path / "promotion-approval.json",
+        "--approver-public-key",
+        tmp_path / "promotion-approver-public.pem",
     )
 
     assert result.returncode == 0
@@ -886,7 +1117,12 @@ def test_promote_creates_audit_and_backups(
         audit_path,
         "--promoted-by",
         "security-admin",
-        "--approve",
+        "--plan",
+        tmp_path / "promotion-plan.json",
+        "--approval",
+        tmp_path / "promotion-approval.json",
+        "--approver-public-key",
+        tmp_path / "promotion-approver-public.pem",
     )
 
     assert result.returncode == 0
@@ -945,7 +1181,12 @@ def test_promote_reports_new_registry_fingerprint(
         tmp_path / "audit.json",
         "--promoted-by",
         "security-admin",
-        "--approve",
+        "--plan",
+        tmp_path / "promotion-plan.json",
+        "--approval",
+        tmp_path / "promotion-approval.json",
+        "--approver-public-key",
+        tmp_path / "promotion-approver-public.pem",
     )
 
     assert result.returncode == 0
@@ -956,273 +1197,111 @@ def test_promote_reports_new_registry_fingerprint(
     )
 
 
-def prepare_promotion_state(tmp_path):
-    import shutil
-
-    result, key_path, plan_path, _ = (
+def test_cli_creates_signed_approval(
+    tmp_path,
+):
+    result, _, plan_path, _ = (
         create_plan(tmp_path)
     )
 
     assert result.returncode == 0
 
-    candidate_dir = (
+    approver_key = (
         tmp_path
-        / "candidate"
+        / "approver-key.pem"
     )
 
-    execute = run_cli(
-        "execute",
+    create_private_key(
+        approver_key
+    )
+
+    approval_path = (
+        tmp_path
+        / "rotation-approval.json"
+    )
+
+    approval = run_cli(
+        "approve",
         "--plan",
         plan_path,
-        "--manifest",
-        MANIFEST,
-        "--registry",
-        REGISTRY,
-        "--new-private-key",
-        key_path,
+        "--approver-private-key",
+        approver_key,
         "--approved-by",
         "security-admin",
-        "--approve",
-        "--output-dir",
-        candidate_dir,
+        "--approved-at",
+        "2026-10-04T09:30:00+00:00",
+        "--approval-id",
+        "APPROVAL-CLI-001",
+        "--output",
+        approval_path,
     )
 
-    assert execute.returncode == 0
-
-    current_dir = (
-        tmp_path
-        / "current"
-    )
-
-    current_dir.mkdir()
-
-    current_manifest = (
-        current_dir
-        / "trusted-manifest.json"
-    )
-
-    current_registry = (
-        current_dir
-        / "trusted-policy-signers.json"
-    )
-
-    shutil.copy(
-        MANIFEST,
-        current_manifest,
-    )
-
-    shutil.copy(
-        REGISTRY,
-        current_registry,
-    )
-
-    return (
-        candidate_dir,
-        current_manifest,
-        current_registry,
-    )
-
-
-def test_promote_requires_explicit_approval(
-    tmp_path,
-):
-    (
-        candidate_dir,
-        current_manifest,
-        current_registry,
-    ) = prepare_promotion_state(
-        tmp_path
-    )
-
-    result = run_cli(
-        "promote",
-        "--current-manifest",
-        current_manifest,
-        "--current-registry",
-        current_registry,
-        "--candidate-manifest",
-        candidate_dir
-        / "trusted-manifest.json",
-        "--candidate-registry",
-        candidate_dir
-        / "trusted-policy-signers.json",
-        "--backup-dir",
-        tmp_path / "backup",
-        "--audit-output",
-        tmp_path / "promotion-audit.json",
-        "--promoted-by",
-        "security-admin",
-    )
-
-    assert result.returncode == 6
+    assert approval.returncode == 0
 
     assert (
-        "explicit --approve is required"
-        in result.stderr
+        "Signed rotation approval created"
+        in approval.stdout
     )
 
-
-def test_promote_replaces_current_files(
-    tmp_path,
-):
-    (
-        candidate_dir,
-        current_manifest,
-        current_registry,
-    ) = prepare_promotion_state(
-        tmp_path
-    )
-
-    candidate_manifest = (
-        candidate_dir
-        / "trusted-manifest.json"
-    )
-
-    candidate_registry = (
-        candidate_dir
-        / "trusted-policy-signers.json"
-    )
-
-    result = run_cli(
-        "promote",
-        "--current-manifest",
-        current_manifest,
-        "--current-registry",
-        current_registry,
-        "--candidate-manifest",
-        candidate_manifest,
-        "--candidate-registry",
-        candidate_registry,
-        "--backup-dir",
-        tmp_path / "backup",
-        "--audit-output",
-        tmp_path / "promotion-audit.json",
-        "--promoted-by",
-        "security-admin",
-        "--promoted-at",
-        "2026-10-04T11:00:00+00:00",
-        "--approve",
-    )
-
-    assert result.returncode == 0
-
-    assert (
-        "Policy key rotation promoted"
-        in result.stdout
-    )
-
-    assert (
-        current_manifest.read_bytes()
-        == candidate_manifest.read_bytes()
-    )
-
-    assert (
-        current_registry.read_bytes()
-        == candidate_registry.read_bytes()
-    )
-
-
-def test_promote_creates_audit_and_backups(
-    tmp_path,
-):
-    (
-        candidate_dir,
-        current_manifest,
-        current_registry,
-    ) = prepare_promotion_state(
-        tmp_path
-    )
-
-    backup_dir = tmp_path / "backup"
-
-    audit_path = (
-        tmp_path
-        / "promotion-audit.json"
-    )
-
-    result = run_cli(
-        "promote",
-        "--current-manifest",
-        current_manifest,
-        "--current-registry",
-        current_registry,
-        "--candidate-manifest",
-        candidate_dir
-        / "trusted-manifest.json",
-        "--candidate-registry",
-        candidate_dir
-        / "trusted-policy-signers.json",
-        "--backup-dir",
-        backup_dir,
-        "--audit-output",
-        audit_path,
-        "--promoted-by",
-        "security-admin",
-        "--approve",
-    )
-
-    assert result.returncode == 0
-    assert audit_path.exists()
-
-    assert (
-        backup_dir
-        / "trusted-manifest.before-rotation.json"
-    ).exists()
-
-    assert (
-        backup_dir
-        / "trusted-policy-signers.before-rotation.json"
-    ).exists()
-
-    audit = json.loads(
-        audit_path.read_text(
+    saved = json.loads(
+        approval_path.read_text(
             encoding="utf-8"
         )
     )
 
-    assert audit["status"] == "completed"
+    assert (
+        saved["approval_id"]
+        == "APPROVAL-CLI-001"
+    )
 
     assert (
-        audit["old_manifest_trust_basis"]
-        == "historical_trust"
+        saved["initiated_by"]
+        == "security-operator"
     )
 
+    assert (
+        saved["approved_by"]
+        == "security-admin"
+    )
 
-def test_promote_reports_new_registry_fingerprint(
+    assert "signature" in saved
+
+
+def test_cli_approval_rejects_same_person(
     tmp_path,
 ):
-    (
-        candidate_dir,
-        current_manifest,
-        current_registry,
-    ) = prepare_promotion_state(
-        tmp_path
-    )
-
-    result = run_cli(
-        "promote",
-        "--current-manifest",
-        current_manifest,
-        "--current-registry",
-        current_registry,
-        "--candidate-manifest",
-        candidate_dir
-        / "trusted-manifest.json",
-        "--candidate-registry",
-        candidate_dir
-        / "trusted-policy-signers.json",
-        "--backup-dir",
-        tmp_path / "backup",
-        "--audit-output",
-        tmp_path / "audit.json",
-        "--promoted-by",
-        "security-admin",
-        "--approve",
+    result, _, plan_path, _ = (
+        create_plan(tmp_path)
     )
 
     assert result.returncode == 0
 
+    approver_key = (
+        tmp_path
+        / "approver-key.pem"
+    )
+
+    create_private_key(
+        approver_key
+    )
+
+    approval = run_cli(
+        "approve",
+        "--plan",
+        plan_path,
+        "--approver-private-key",
+        approver_key,
+        "--approved-by",
+        "security-operator",
+        "--approved-at",
+        "2026-10-04T09:30:00+00:00",
+        "--output",
+        tmp_path / "approval.json",
+    )
+
+    assert approval.returncode == 1
+
     assert (
-        "New registry SHA-256:"
-        in result.stdout
+        "Separation of duties violation"
+        in approval.stderr
     )

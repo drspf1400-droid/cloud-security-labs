@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 from copy import deepcopy
+
+from modules.rotation_approval import verify_rotation_approval
 from uuid import uuid4
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (
@@ -37,6 +39,7 @@ def plan_policy_key_rotation(
     new_signer_id,
     new_key_id,
     rotated_at,
+    initiated_by=None,
     rotation_id=None,
     new_manifest_id=None,
 ):
@@ -57,6 +60,11 @@ def plan_policy_key_rotation(
         )
 
     parse_timestamp(rotated_at)
+
+    if not initiated_by:
+        raise PolicyKeyRotationError(
+            "initiated_by is required"
+        )
 
     manifest_source = deepcopy(manifest)
     registry_source = deepcopy(registry)
@@ -137,6 +145,7 @@ def plan_policy_key_rotation(
         "rotation_id": rotation_id,
         "status": "planned",
         "requires_approval": True,
+        "initiated_by": initiated_by,
         "rotated_at": rotated_at,
         "source_manifest_id": (
             manifest_source.get(
@@ -180,7 +189,8 @@ def execute_policy_key_rotation(
     registry,
     new_private_key,
     *,
-    approved_by,
+    approval,
+    trusted_approver_public_key,
 ):
     """
     Execute an approved rotation plan.
@@ -188,11 +198,6 @@ def execute_policy_key_rotation(
     Returns new registry, re-signed manifest and
     machine-readable audit evidence.
     """
-
-    if not approved_by:
-        raise PolicyKeyRotationError(
-            "Human approval is required"
-        )
 
     if not isinstance(
         new_private_key,
@@ -202,6 +207,31 @@ def execute_policy_key_rotation(
             "new_private_key must be an "
             "Ed25519PrivateKey"
         )
+
+    approval_verification = (
+        verify_rotation_approval(
+            plan,
+            approval,
+            trusted_public_key=(
+                trusted_approver_public_key
+            ),
+        )
+    )
+
+    if not approval_verification.get(
+        "valid"
+    ):
+        raise PolicyKeyRotationError(
+            "Signed rotation approval "
+            "verification failed: "
+            f"{approval_verification.get('status')}"
+        )
+
+    approved_by = (
+        approval_verification[
+            "approved_by"
+        ]
+    )
 
     plan_source = deepcopy(plan)
     manifest_source = deepcopy(manifest)
