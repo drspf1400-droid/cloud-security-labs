@@ -1,0 +1,129 @@
+name: Security Assurance Gate
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  security-gate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install CI dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-ci.txt
+
+      - name: Run full test suite
+        run: |
+          python -m pytest -q
+
+      - name: Prepare passing assessment
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          source = Path("schemas/finding-example.json")
+          output = Path("/tmp/passing-assessment.json")
+
+          assessment = json.loads(
+              source.read_text(encoding="utf-8")
+          )
+
+          for finding in assessment.get(
+              "findings",
+              [],
+          ):
+              finding["baseline_severity"] = "medium"
+              finding["status"] = "remediated"
+
+          execution = (
+              assessment
+              .setdefault("assessment", {})
+              .setdefault("execution", {})
+          )
+
+          execution["summary"] = {
+              "executed": len(
+                  assessment.get("findings", [])
+              ),
+              "dry_run": 0,
+              "blocked": 0,
+              "failed": 0,
+          }
+
+          output.write_text(
+              json.dumps(
+                  assessment,
+                  indent=2,
+              )
+              + "\n",
+              encoding="utf-8",
+          )
+
+          print(output)
+          PY
+
+      - name: Verify passing security gate
+        run: |
+          python scripts/generate_assurance_report.py \
+            --assessment /tmp/passing-assessment.json \
+            --trust-report report/trust_decision_report.json \
+            --output-dir ci-assurance-pass \
+            --report-id CI-GATE-PASS \
+            --generated-at 2026-10-03T10:00:00+00:00 \
+            --enforce-gate
+
+      - name: Verify unsafe assessment is blocked
+        run: |
+          set +e
+
+          python scripts/generate_assurance_report.py \
+            --assessment schemas/finding-example.json \
+            --trust-report report/trust_decision_report.json \
+            --output-dir ci-assurance-blocked \
+            --report-id CI-GATE-BLOCKED \
+            --generated-at 2026-10-03T10:00:00+00:00 \
+            --enforce-gate
+
+          exit_code=$?
+
+          set -e
+
+          echo "Observed gate exit code: $exit_code"
+
+          if [ "$exit_code" -ne 2 ]; then
+            echo "Expected security gate exit code 2"
+            exit 1
+          fi
+
+          echo "Unsafe assessment correctly blocked"
+
+      - name: Show gate decisions
+        if: always()
+        run: |
+          echo "----- PASSING GATE -----"
+          cat ci-assurance-pass/security_gate_result.json || true
+
+          echo "----- BLOCKED GATE -----"
+          cat ci-assurance-blocked/security_gate_result.json || true
+
+      - name: Upload assurance artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-assurance-gate-results
+          path: |
+            ci-assurance-pass/
+            ci-assurance-blocked/

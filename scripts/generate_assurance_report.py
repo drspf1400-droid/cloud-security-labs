@@ -17,6 +17,10 @@ from modules.security_assurance_report import (
     write_security_assurance_report,
 )
 
+from modules.security_gate import (
+    evaluate_security_gate,
+)
+
 
 def load_json(path):
     path = Path(path)
@@ -98,6 +102,15 @@ def parse_args():
         ),
     )
 
+    parser.add_argument(
+        "--enforce-gate",
+        action="store_true",
+        help=(
+            "Evaluate the default CI/CD security gate "
+            "and exit with code 2 when the gate fails"
+        ),
+    )
+
     return parser.parse_args()
 
 
@@ -150,6 +163,27 @@ def main():
             html_path=html_path,
         )
 
+        gate_result = None
+
+        if args.enforce_gate:
+            gate_result = evaluate_security_gate(
+                report
+            )
+
+            gate_path = (
+                output_dir
+                / "security_gate_result.json"
+            )
+
+            gate_path.write_text(
+                json.dumps(
+                    gate_result,
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
     except (
         FileNotFoundError,
         ValueError,
@@ -180,6 +214,30 @@ def main():
         "Security score: "
         f"{summary.get('security_score')}"
     )
+
+    if args.enforce_gate:
+        print(
+            "Security gate: "
+            f"{gate_result.get('decision')}"
+        )
+
+        print(
+            "Gate result: "
+            f"{gate_path}"
+        )
+
+        if not gate_result.get("passed"):
+            for reason in gate_result.get(
+                "reasons",
+                [],
+            ):
+                print(
+                    "Gate failure: "
+                    f"{reason.get('code')} - "
+                    f"{reason.get('message')}"
+                )
+
+            return gate_result["exit_code"]
 
     return 0
 

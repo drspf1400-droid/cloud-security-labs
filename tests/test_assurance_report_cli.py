@@ -196,3 +196,134 @@ def test_cli_can_run_without_trust_report(
         ]
         is False
     )
+
+
+def test_cli_gate_failure_returns_exit_code_2(
+    tmp_path,
+):
+    output_dir = tmp_path / "gate-fail"
+
+    result = run_cli(
+        "--assessment",
+        ROOT / "schemas/finding-example.json",
+        "--trust-report",
+        ROOT / "report/trust_decision_report.json",
+        "--output-dir",
+        output_dir,
+        "--enforce-gate",
+    )
+
+    assert result.returncode == 2
+    assert "Security gate: fail" in result.stdout
+
+    gate_path = (
+        output_dir
+        / "security_gate_result.json"
+    )
+
+    assert gate_path.exists()
+
+    gate = json.loads(
+        gate_path.read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert gate["passed"] is False
+    assert gate["decision"] == "fail"
+    assert gate["exit_code"] == 2
+
+
+def test_cli_without_gate_enforcement_remains_zero(
+    tmp_path,
+):
+    output_dir = tmp_path / "no-enforcement"
+
+    result = run_cli(
+        "--assessment",
+        ROOT / "schemas/finding-example.json",
+        "--trust-report",
+        ROOT / "report/trust_decision_report.json",
+        "--output-dir",
+        output_dir,
+    )
+
+    assert result.returncode == 0
+
+    assert not (
+        output_dir
+        / "security_gate_result.json"
+    ).exists()
+
+
+def test_cli_gate_pass_returns_zero(tmp_path):
+    assessment = json.loads(
+        (
+            ROOT
+            / "schemas"
+            / "finding-example.json"
+        ).read_text(
+            encoding="utf-8"
+        )
+    )
+
+    for finding in assessment.get(
+        "findings",
+        [],
+    ):
+        finding["baseline_severity"] = "medium"
+        finding["status"] = "remediated"
+
+    execution = (
+        assessment
+        .setdefault("assessment", {})
+        .setdefault("execution", {})
+    )
+
+    execution["summary"] = {
+        "executed": 4,
+        "dry_run": 0,
+        "blocked": 0,
+        "failed": 0,
+    }
+
+    assessment_path = (
+        tmp_path
+        / "passing-assessment.json"
+    )
+
+    assessment_path.write_text(
+        json.dumps(
+            assessment,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    output_dir = tmp_path / "gate-pass"
+
+    result = run_cli(
+        "--assessment",
+        assessment_path,
+        "--trust-report",
+        ROOT / "report/trust_decision_report.json",
+        "--output-dir",
+        output_dir,
+        "--enforce-gate",
+    )
+
+    assert result.returncode == 0
+    assert "Security gate: pass" in result.stdout
+
+    gate = json.loads(
+        (
+            output_dir
+            / "security_gate_result.json"
+        ).read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert gate["passed"] is True
+    assert gate["decision"] == "pass"
+    assert gate["exit_code"] == 0
