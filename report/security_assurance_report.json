@@ -1,0 +1,94 @@
+{
+  "report_version": "1.0",
+  "report_type": "security_assurance",
+  "report_id": "SECURITY-ASSURANCE-DEMO-001",
+  "generated_at": "2026-09-30T14:00:00+00:00",
+  "executive_summary": {
+    "assessment_id": "ASM-EXAMPLE-001",
+    "security_score": 35,
+    "risk_level": "high",
+    "assurance_state": "attention_required",
+    "total_findings": 4,
+    "critical_findings": 0,
+    "high_findings": 2,
+    "policy_decisions": {
+      "apply": 0,
+      "dry_run": 0,
+      "blocked": 4
+    },
+    "execution_outcomes": {
+      "executed": 0,
+      "dry_run": 0,
+      "blocked": 4,
+      "failed": 0
+    },
+    "trust_decision": "accept"
+  },
+  "asset": {
+    "asset_id": "LAB-SRV-001",
+    "hostname": "ubuntu-lab",
+    "asset_type": "linux_server",
+    "environment": "lab",
+    "internet_exposed": null,
+    "business_criticality": null
+  },
+  "assurance_controls": {
+    "human_review_present": false,
+    "policy_guardrails_present": true,
+    "execution_plan_present": true,
+    "execution_evidence_present": true,
+    "integrity_hash_present": true,
+    "cryptographic_provenance_present": false,
+    "trust_decision_present": true
+  },
+  "trust_assurance": {
+    "effective_decision": "accept",
+    "decision_basis": "current_trust",
+    "signature_valid": true,
+    "signer_id": "security-automation",
+    "key_id": "key-example-001",
+    "key_status": "active"
+  },
+  "findings": [
+    {
+      "finding_id": "SSH-001",
+      "title": "SSH root login enabled",
+      "category": "ssh",
+      "severity": "high",
+      "status": "open",
+      "recommendation": "Disable direct SSH root login.",
+      "approval_status": "pending",
+      "remediation_applied": false
+    },
+    {
+      "finding_id": "FW-001",
+      "title": "Host firewall is inactive",
+      "category": "firewall",
+      "severity": "high",
+      "status": "open",
+      "recommendation": "Enable and configure the host firewall according to the required network policy.",
+      "approval_status": "pending",
+      "remediation_applied": false
+    },
+    {
+      "finding_id": "NET-001",
+      "title": "Service listening on all network interfaces",
+      "category": "network",
+      "severity": "medium",
+      "status": "open",
+      "recommendation": "Review whether the service needs to listen on all network interfaces and restrict network access where appropriate.",
+      "approval_status": "pending",
+      "remediation_applied": false
+    },
+    {
+      "finding_id": "UPD-001",
+      "title": "Package updates available",
+      "category": "updates",
+      "severity": "medium",
+      "status": "open",
+      "recommendation": "Review available package updates, identify security-relevant updates, test them, and apply approved updates.",
+      "approval_status": "pending",
+      "remediation_applied": false
+    }
+  ]
+}

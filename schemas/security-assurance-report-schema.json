@@ -1,0 +1,283 @@
+{
+  "type": "object",
+  "required": [
+    "report_version",
+    "report_type",
+    "report_id",
+    "generated_at",
+    "executive_summary",
+    "asset",
+    "assurance_controls",
+    "trust_assurance",
+    "findings"
+  ],
+  "properties": {
+    "report_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "report_type": {
+      "type": "string",
+      "const": "security_assurance"
+    },
+    "report_id": {
+      "type": "string"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "executive_summary": {
+      "type": "object",
+      "required": [
+        "assessment_id",
+        "security_score",
+        "risk_level",
+        "assurance_state",
+        "total_findings",
+        "critical_findings",
+        "high_findings",
+        "policy_decisions",
+        "execution_outcomes",
+        "trust_decision"
+      ],
+      "properties": {
+        "assessment_id": {
+          "type": ["string", "null"]
+        },
+        "security_score": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "maximum": 100
+        },
+        "risk_level": {
+          "type": ["string", "null"]
+        },
+        "assurance_state": {
+          "type": "string",
+          "enum": [
+            "verified",
+            "partial",
+            "attention_required"
+          ]
+        },
+        "total_findings": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "critical_findings": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "high_findings": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "policy_decisions": {
+          "type": "object",
+          "required": [
+            "apply",
+            "dry_run",
+            "blocked"
+          ],
+          "properties": {
+            "apply": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "dry_run": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "blocked": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        "execution_outcomes": {
+          "type": "object",
+          "required": [
+            "executed",
+            "dry_run",
+            "blocked",
+            "failed"
+          ],
+          "properties": {
+            "executed": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "dry_run": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "blocked": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "failed": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        "trust_decision": {
+          "type": "string",
+          "enum": [
+            "accept",
+            "reject",
+            "unknown"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "asset": {
+      "type": "object",
+      "required": [
+        "asset_id",
+        "hostname",
+        "asset_type",
+        "environment",
+        "internet_exposed",
+        "business_criticality"
+      ],
+      "properties": {
+        "asset_id": {
+          "type": ["string", "null"]
+        },
+        "hostname": {
+          "type": ["string", "null"]
+        },
+        "asset_type": {
+          "type": ["string", "null"]
+        },
+        "environment": {
+          "type": ["string", "null"]
+        },
+        "internet_exposed": {
+          "type": ["boolean", "null"]
+        },
+        "business_criticality": {
+          "type": ["string", "null"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "assurance_controls": {
+      "type": "object",
+      "required": [
+        "human_review_present",
+        "policy_guardrails_present",
+        "execution_plan_present",
+        "execution_evidence_present",
+        "integrity_hash_present",
+        "cryptographic_provenance_present",
+        "trust_decision_present"
+      ],
+      "properties": {
+        "human_review_present": {
+          "type": "boolean"
+        },
+        "policy_guardrails_present": {
+          "type": "boolean"
+        },
+        "execution_plan_present": {
+          "type": "boolean"
+        },
+        "execution_evidence_present": {
+          "type": "boolean"
+        },
+        "integrity_hash_present": {
+          "type": "boolean"
+        },
+        "cryptographic_provenance_present": {
+          "type": "boolean"
+        },
+        "trust_decision_present": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "trust_assurance": {
+      "type": "object",
+      "required": [
+        "effective_decision",
+        "decision_basis",
+        "signature_valid",
+        "signer_id",
+        "key_id",
+        "key_status"
+      ],
+      "properties": {
+        "effective_decision": {
+          "type": ["string", "null"]
+        },
+        "decision_basis": {
+          "type": ["string", "null"]
+        },
+        "signature_valid": {
+          "type": ["boolean", "null"]
+        },
+        "signer_id": {
+          "type": ["string", "null"]
+        },
+        "key_id": {
+          "type": ["string", "null"]
+        },
+        "key_status": {
+          "type": ["string", "null"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "finding_id",
+          "title",
+          "category",
+          "severity",
+          "status",
+          "recommendation",
+          "approval_status",
+          "remediation_applied"
+        ],
+        "properties": {
+          "finding_id": {
+            "type": ["string", "null"]
+          },
+          "title": {
+            "type": ["string", "null"]
+          },
+          "category": {
+            "type": ["string", "null"]
+          },
+          "severity": {
+            "type": ["string", "null"]
+          },
+          "status": {
+            "type": ["string", "null"]
+          },
+          "recommendation": {
+            "type": ["string", "null"]
+          },
+          "approval_status": {
+            "type": ["string", "null"]
+          },
+          "remediation_applied": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
