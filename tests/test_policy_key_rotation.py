@@ -18,6 +18,10 @@ from modules.policy_manifest_signing import (
     sign_policy_manifest,
 )
 
+from modules.rotation_approval import (
+    sign_rotation_approval,
+)
+
 from modules.policy_signer_registry import (
     create_policy_signer_registry,
     get_policy_signer,
@@ -137,9 +141,37 @@ def build_plan(
         ),
         new_key_id="policy-key-002",
         rotated_at=ROTATED_AT,
+        initiated_by="security-operator",
         rotation_id="ROTATION-001",
         new_manifest_id="MANIFEST-002",
     )
+
+
+def signed_approval_args(
+    plan,
+    approved_by="security-admin",
+):
+    approver_key = (
+        Ed25519PrivateKey.generate()
+    )
+
+    approval = sign_rotation_approval(
+        plan,
+        approver_key,
+        initiated_by=plan["initiated_by"],
+        approved_by=approved_by,
+        approved_at=(
+            "2026-10-03T11:30:00+00:00"
+        ),
+        approval_id="APPROVAL-TEST-001",
+    )
+
+    return {
+        "approval": approval,
+        "trusted_approver_public_key": (
+            approver_key.public_key()
+        ),
+    }
 
 
 def test_rotation_plan_is_created():
@@ -250,7 +282,12 @@ def test_execution_requires_human_approval():
             manifest,
             registry,
             new_key["private"],
-            approved_by="",
+            approval={},
+            trusted_approver_public_key=(
+                Ed25519PrivateKey
+                .generate()
+                .public_key()
+            ),
         )
 
 
@@ -273,7 +310,7 @@ def test_rotation_revokes_old_and_activates_new():
         manifest,
         registry,
         new_key["private"],
-        approved_by="security-admin",
+        **signed_approval_args(plan),
     )
 
     old_signer = get_policy_signer(
@@ -309,7 +346,7 @@ def test_rotated_manifest_uses_new_signer():
         manifest,
         registry,
         new_key["private"],
-        approved_by="security-admin",
+        **signed_approval_args(plan),
     )
 
     rotated_manifest = (
@@ -360,7 +397,7 @@ def test_rotated_manifest_is_currently_trusted():
         manifest,
         registry,
         new_key["private"],
-        approved_by="security-admin",
+        **signed_approval_args(plan),
     )
 
     trust = result["verification"]
@@ -403,7 +440,7 @@ def test_execution_rejects_unapproved_new_key():
             manifest,
             registry,
             different_key["private"],
-            approved_by="security-admin",
+            **signed_approval_args(plan),
         )
 
 
@@ -426,7 +463,7 @@ def test_rotation_produces_audit_evidence():
         manifest,
         registry,
         new_key["private"],
-        approved_by="security-admin",
+        **signed_approval_args(plan),
     )
 
     audit = result["audit_event"]
@@ -483,7 +520,7 @@ def test_rotation_does_not_mutate_inputs():
         manifest,
         registry,
         new_key["private"],
-        approved_by="security-admin",
+        **signed_approval_args(plan),
     )
 
     assert registry == original_registry

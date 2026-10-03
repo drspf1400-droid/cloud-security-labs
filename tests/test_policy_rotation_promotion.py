@@ -14,6 +14,10 @@ from modules.policy_key_rotation import (
     plan_policy_key_rotation,
 )
 
+from modules.rotation_approval import (
+    sign_rotation_approval,
+)
+
 from modules.policy_signer_registry import (
     policy_signer_registry_fingerprint,
 )
@@ -79,10 +83,24 @@ def build_candidate(tmp_path):
             "policy-manifest-key-test-002"
         ),
         rotated_at=rotated_at,
+        initiated_by="security-operator",
         rotation_id="PROMOTION-TEST-001",
         new_manifest_id=(
             "PROMOTION-MANIFEST-002"
         ),
+    )
+
+    approver_key = (
+        Ed25519PrivateKey.generate()
+    )
+
+    approval = sign_rotation_approval(
+        plan,
+        approver_key,
+        initiated_by=plan["initiated_by"],
+        approved_by="test-approver",
+        approved_at=rotated_at,
+        approval_id="PROMOTION-APPROVAL-001",
     )
 
     result = execute_policy_key_rotation(
@@ -90,8 +108,17 @@ def build_candidate(tmp_path):
         manifest,
         registry,
         new_key,
-        approved_by="test-approver",
+        approval=approval,
+        trusted_approver_public_key=(
+            approver_key.public_key()
+        ),
     )
+
+    result["_test_plan"] = plan
+    result["_test_approval"] = approval
+    result[
+        "_test_approver_public_key"
+    ] = approver_key.public_key()
 
     candidate_dir = (
         tmp_path
@@ -166,7 +193,7 @@ def current_files(tmp_path):
 def test_valid_rotation_candidate_is_accepted(
     tmp_path,
 ):
-    candidate_manifest, candidate_registry, _ = (
+    candidate_manifest, candidate_registry, rotation_result = (
         build_candidate(tmp_path)
     )
 
@@ -203,7 +230,7 @@ def test_valid_rotation_candidate_is_accepted(
 def test_promotion_replaces_trust_files(
     tmp_path,
 ):
-    candidate_manifest, candidate_registry, _ = (
+    candidate_manifest, candidate_registry, rotation_result = (
         build_candidate(tmp_path)
     )
 
@@ -212,6 +239,15 @@ def test_promotion_replaces_trust_files(
     )
 
     promotion.promote_policy_rotation(
+        plan=rotation_result["_test_plan"],
+        approval=(
+            rotation_result["_test_approval"]
+        ),
+        trusted_approver_public_key=(
+            rotation_result[
+                "_test_approver_public_key"
+            ]
+        ),
         current_manifest_path=manifest,
         current_registry_path=registry,
         candidate_manifest_path=(
@@ -238,7 +274,7 @@ def test_promotion_replaces_trust_files(
 def test_promotion_creates_backups(
     tmp_path,
 ):
-    candidate_manifest, candidate_registry, _ = (
+    candidate_manifest, candidate_registry, rotation_result = (
         build_candidate(tmp_path)
     )
 
@@ -249,6 +285,15 @@ def test_promotion_creates_backups(
     backup = tmp_path / "backup"
 
     promotion.promote_policy_rotation(
+        plan=rotation_result["_test_plan"],
+        approval=(
+            rotation_result["_test_approval"]
+        ),
+        trusted_approver_public_key=(
+            rotation_result[
+                "_test_approver_public_key"
+            ]
+        ),
         current_manifest_path=manifest,
         current_registry_path=registry,
         candidate_manifest_path=(
@@ -275,7 +320,7 @@ def test_promotion_creates_backups(
 def test_promotion_writes_audit_evidence(
     tmp_path,
 ):
-    candidate_manifest, candidate_registry, _ = (
+    candidate_manifest, candidate_registry, rotation_result = (
         build_candidate(tmp_path)
     )
 
@@ -289,6 +334,15 @@ def test_promotion_writes_audit_evidence(
     )
 
     audit = promotion.promote_policy_rotation(
+        plan=rotation_result["_test_plan"],
+        approval=(
+            rotation_result["_test_approval"]
+        ),
+        trusted_approver_public_key=(
+            rotation_result[
+                "_test_approver_public_key"
+            ]
+        ),
         current_manifest_path=manifest,
         current_registry_path=registry,
         candidate_manifest_path=(
@@ -324,7 +378,7 @@ def test_promotion_writes_audit_evidence(
 def test_invalid_candidate_does_not_modify_current_files(
     tmp_path,
 ):
-    candidate_manifest, candidate_registry, _ = (
+    candidate_manifest, candidate_registry, rotation_result = (
         build_candidate(tmp_path)
     )
 
@@ -360,6 +414,15 @@ def test_invalid_candidate_does_not_modify_current_files(
         promotion.PolicyRotationPromotionError
     ):
         promotion.promote_policy_rotation(
+            plan=rotation_result["_test_plan"],
+            approval=(
+                rotation_result["_test_approval"]
+            ),
+            trusted_approver_public_key=(
+                rotation_result[
+                    "_test_approver_public_key"
+                ]
+            ),
             current_manifest_path=manifest,
             current_registry_path=registry,
             candidate_manifest_path=(
@@ -387,7 +450,7 @@ def test_failure_during_promotion_rolls_back(
     tmp_path,
     monkeypatch,
 ):
-    candidate_manifest, candidate_registry, _ = (
+    candidate_manifest, candidate_registry, rotation_result = (
         build_candidate(tmp_path)
     )
 
@@ -430,6 +493,15 @@ def test_failure_during_promotion_rolls_back(
         match="previous trust state was restored",
     ):
         promotion.promote_policy_rotation(
+            plan=rotation_result["_test_plan"],
+            approval=(
+                rotation_result["_test_approval"]
+            ),
+            trusted_approver_public_key=(
+                rotation_result[
+                    "_test_approver_public_key"
+                ]
+            ),
             current_manifest_path=manifest,
             current_registry_path=registry,
             candidate_manifest_path=(
@@ -456,7 +528,7 @@ def test_failure_during_promotion_rolls_back(
 def test_candidate_artifacts_are_not_modified(
     tmp_path,
 ):
-    candidate_manifest, candidate_registry, _ = (
+    candidate_manifest, candidate_registry, rotation_result = (
         build_candidate(tmp_path)
     )
 
@@ -473,6 +545,15 @@ def test_candidate_artifacts_are_not_modified(
     )
 
     promotion.promote_policy_rotation(
+        plan=rotation_result["_test_plan"],
+        approval=(
+            rotation_result["_test_approval"]
+        ),
+        trusted_approver_public_key=(
+            rotation_result[
+                "_test_approver_public_key"
+            ]
+        ),
         current_manifest_path=manifest,
         current_registry_path=registry,
         candidate_manifest_path=(

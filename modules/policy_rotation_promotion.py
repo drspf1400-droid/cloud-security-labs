@@ -9,6 +9,8 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 
+from modules.rotation_approval import verify_rotation_approval
+
 from modules.policy_signer_registry import (
     evaluate_policy_manifest_trust,
     get_policy_signer,
@@ -252,6 +254,9 @@ def validate_rotation_candidate(
 
 def promote_policy_rotation(
     *,
+    plan,
+    approval,
+    trusted_approver_public_key,
     current_manifest_path,
     current_registry_path,
     candidate_manifest_path,
@@ -261,6 +266,25 @@ def promote_policy_rotation(
     promoted_by,
     promoted_at=None,
 ):
+    approval_verification = (
+        verify_rotation_approval(
+            plan,
+            approval,
+            trusted_public_key=(
+                trusted_approver_public_key
+            ),
+        )
+    )
+
+    if not approval_verification.get(
+        "valid"
+    ):
+        raise PolicyRotationPromotionError(
+            "Signed rotation approval "
+            "verification failed: "
+            f"{approval_verification.get('status')}"
+        )
+
     if not promoted_by:
         raise PolicyRotationPromotionError(
             "promoted_by is required"

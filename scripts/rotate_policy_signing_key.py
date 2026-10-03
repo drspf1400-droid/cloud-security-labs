@@ -28,6 +28,11 @@ from modules.policy_rotation_promotion import (
     promote_policy_rotation,
 )
 
+from modules.rotation_approval import (
+    RotationApprovalError,
+    sign_rotation_approval,
+)
+
 
 EXIT_OK = 0
 EXIT_ERROR = 1
@@ -107,9 +112,37 @@ def load_private_key(path):
     return key
 
 
+def load_public_key(path):
+    from cryptography.hazmat.primitives.serialization import (
+        load_pem_public_key,
+    )
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+        Ed25519PublicKey,
+    )
+
+    key_data = Path(
+        path
+    ).read_bytes()
+
+    key = load_pem_public_key(
+        key_data
+    )
+
+    if not isinstance(
+        key,
+        Ed25519PublicKey,
+    ):
+        raise ValueError(
+            "Approver public key must be Ed25519"
+        )
+
+    return key
+
+
 def build_parser():
     parser = argparse.ArgumentParser(
-        description=(
+
+        allow_abbrev=False,description=(
             "Plan and execute controlled "
             "policy-signing key rotation."
         )
@@ -141,6 +174,15 @@ def build_parser():
     )
 
     plan_parser.add_argument(
+        "--initiated-by",
+        required=True,
+        help=(
+            "Identity of the operator initiating "
+            "the rotation"
+        ),
+    )
+
+    plan_parser.add_argument(
         "--new-signer-id",
         required=True,
     )
@@ -164,6 +206,43 @@ def build_parser():
     )
 
     plan_parser.add_argument(
+        "--output",
+        required=True,
+    )
+
+    approve_parser = subparsers.add_parser(
+        "approve",
+        help=(
+            "Create a cryptographically signed "
+            "human approval artifact"
+        ),
+    )
+
+    approve_parser.add_argument(
+        "--plan",
+        required=True,
+    )
+
+    approve_parser.add_argument(
+        "--approver-private-key",
+        required=True,
+    )
+
+    approve_parser.add_argument(
+        "--approved-by",
+        required=True,
+    )
+
+    approve_parser.add_argument(
+        "--approved-at",
+        required=True,
+    )
+
+    approve_parser.add_argument(
+        "--approval-id",
+    )
+
+    approve_parser.add_argument(
         "--output",
         required=True,
     )
@@ -197,16 +276,19 @@ def build_parser():
     )
 
     execute_parser.add_argument(
-        "--approved-by",
+        "--approval",
         required=True,
+        help=(
+            "Signed rotation approval artifact"
+        ),
     )
 
     execute_parser.add_argument(
-        "--approve",
-        action="store_true",
+        "--approver-public-key",
+        required=True,
         help=(
-            "Explicitly authorize execution "
-            "of the reviewed rotation plan"
+            "Trusted Ed25519 approver "
+            "public key"
         ),
     )
 
@@ -263,11 +345,27 @@ def build_parser():
     )
 
     promote_parser.add_argument(
-        "--approve",
-        action="store_true",
+        "--plan",
+        required=True,
         help=(
-            "Explicitly approve promotion of "
-            "the reviewed rotation candidate"
+            "Original approved rotation plan"
+        ),
+    )
+
+    promote_parser.add_argument(
+        "--approval",
+        required=True,
+        help=(
+            "Signed rotation approval artifact"
+        ),
+    )
+
+    promote_parser.add_argument(
+        "--approver-public-key",
+        required=True,
+        help=(
+            "Trusted Ed25519 approver "
+            "public key"
         ),
     )
 
@@ -312,6 +410,7 @@ def command_plan(args):
         ),
         new_key_id=args.new_key_id,
         rotated_at=args.rotated_at,
+        initiated_by=args.initiated_by,
         rotation_id=args.rotation_id,
         new_manifest_id=(
             args.new_manifest_id
@@ -330,6 +429,10 @@ def command_plan(args):
         f"{plan['rotation_id']}"
     )
     print(
+        "Initiated by: "
+        f"{plan['initiated_by']}"
+    )
+    print(
         "Old key: "
         f"{plan['old_signer']['key_id']}"
     )
@@ -342,17 +445,73 @@ def command_plan(args):
     return EXIT_OK
 
 
-def command_execute(args):
-    if not args.approve:
-        print(
-            "ERROR: explicit --approve is required",
-            file=sys.stderr,
-        )
-
-        return EXIT_APPROVAL_REQUIRED
-
+def command_approve(args):
     plan = load_json(
         args.plan
+    )
+
+    private_key = load_private_key(
+        args.approver_private_key
+    )
+
+    approval = sign_rotation_approval(
+        plan,
+        private_key,
+        initiated_by=(
+            plan.get("initiated_by")
+        ),
+        approved_by=args.approved_by,
+        approved_at=args.approved_at,
+        approval_id=args.approval_id,
+    )
+
+    write_json(
+        args.output,
+        approval,
+    )
+
+    print("Signed rotation approval created")
+    print(
+        "Approval ID: "
+        f"{approval['approval_id']}"
+    )
+    print(
+        "Rotation ID: "
+        f"{approval['rotation_id']}"
+    )
+    print(
+        "Initiated by: "
+        f"{approval['initiated_by']}"
+    )
+    print(
+        "Approved by: "
+        f"{approval['approved_by']}"
+    )
+    print(
+        "Plan SHA-256: "
+        f"{approval['plan_sha256']}"
+    )
+    print(
+        "Approval: "
+        f"{args.output}"
+    )
+
+    return EXIT_OK
+
+
+def command_execute(args):
+    plan = load_json(
+        args.plan
+    )
+
+    approval = load_json(
+        args.approval
+    )
+
+    approver_public_key = (
+        load_public_key(
+            args.approver_public_key
+        )
     )
 
     manifest = load_json(
@@ -372,7 +531,10 @@ def command_execute(args):
         manifest,
         registry,
         new_private_key,
-        approved_by=args.approved_by,
+        approval=approval,
+        trusted_approver_public_key=(
+            approver_public_key
+        ),
     )
 
     output_dir = Path(
@@ -461,7 +623,7 @@ def command_execute(args):
     print("Policy key rotation completed")
     print(
         "Approved by: "
-        f"{args.approved_by}"
+        f"{result['approved_by']}"
     )
     print(
         "New signer: "
@@ -477,14 +639,26 @@ def command_execute(args):
 
 
 def command_promote(args):
-    if not args.approve:
-        print(
-            "ERROR: explicit --approve is required",
-            file=sys.stderr,
+    plan = load_json(
+        args.plan
+    )
+
+    approval = load_json(
+        args.approval
+    )
+
+    approver_public_key = (
+        load_public_key(
+            args.approver_public_key
         )
-        return EXIT_APPROVAL_REQUIRED
+    )
 
     audit = promote_policy_rotation(
+        plan=plan,
+        approval=approval,
+        trusted_approver_public_key=(
+            approver_public_key
+        ),
         current_manifest_path=(
             args.current_manifest
         ),
@@ -540,6 +714,9 @@ def main():
         if args.command == "plan":
             return command_plan(args)
 
+        if args.command == "approve":
+            return command_approve(args)
+
         if args.command == "execute":
             return command_execute(args)
 
@@ -555,6 +732,7 @@ def main():
         ValueError,
         PolicyKeyRotationError,
         PolicyRotationPromotionError,
+        RotationApprovalError,
         OSError,
     ) as exc:
         print(
