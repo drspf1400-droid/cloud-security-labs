@@ -9,7 +9,7 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 
-from modules.rotation_approval import verify_rotation_approval
+from modules.approver_trust_registry import verify_rotation_approval_with_registry
 
 from modules.policy_signer_registry import (
     evaluate_policy_manifest_trust,
@@ -256,7 +256,7 @@ def promote_policy_rotation(
     *,
     plan,
     approval,
-    trusted_approver_public_key,
+    approver_registry,
     current_manifest_path,
     current_registry_path,
     candidate_manifest_path,
@@ -267,12 +267,10 @@ def promote_policy_rotation(
     promoted_at=None,
 ):
     approval_verification = (
-        verify_rotation_approval(
+        verify_rotation_approval_with_registry(
             plan,
             approval,
-            trusted_public_key=(
-                trusted_approver_public_key
-            ),
+            approver_registry,
         )
     )
 

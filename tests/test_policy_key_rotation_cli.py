@@ -61,6 +61,7 @@ def create_private_key(path):
     return key
 
 
+
 def create_cli_signed_approval(
     tmp_path,
     plan_path,
@@ -68,9 +69,16 @@ def create_cli_signed_approval(
     stem,
 ):
     from cryptography.hazmat.primitives.serialization import (
-        Encoding,
-        PublicFormat,
         load_pem_private_key,
+    )
+
+    from modules.approver_trust_registry import (
+        create_approver_registry,
+        register_approver,
+    )
+
+    from modules.policy_manifest_signing import (
+        public_key_to_base64,
     )
 
     private_key_path = (
@@ -78,14 +86,14 @@ def create_cli_signed_approval(
         / f"{stem}-approver-private.pem"
     )
 
-    public_key_path = (
-        tmp_path
-        / f"{stem}-approver-public.pem"
-    )
-
     approval_path = (
         tmp_path
         / f"{stem}-approval.json"
+    )
+
+    registry_path = (
+        tmp_path
+        / f"{stem}-approver-registry.json"
     )
 
     create_private_key(
@@ -99,11 +107,36 @@ def create_cli_signed_approval(
         )
     )
 
-    public_key_path.write_bytes(
-        private_key.public_key().public_bytes(
-            Encoding.PEM,
-            PublicFormat.SubjectPublicKeyInfo,
+    registry = create_approver_registry(
+        created_at=(
+            "2026-10-04T08:00:00+00:00"
+        ),
+        registry_id=(
+            f"{stem.upper()}-APPROVER-REGISTRY-001"
+        ),
+    )
+
+    registry = register_approver(
+        registry,
+        approver_id="security-admin",
+        key_id="approver-key-001",
+        public_key_b64=(
+            public_key_to_base64(
+                private_key.public_key()
+            )
+        ),
+        registered_at=(
+            "2026-10-04T08:30:00+00:00"
+        ),
+    )
+
+    registry_path.write_text(
+        json.dumps(
+            registry,
+            indent=2,
         )
+        + "\n",
+        encoding="utf-8",
     )
 
     approval = run_cli(
@@ -128,7 +161,7 @@ def create_cli_signed_approval(
 
     return (
         approval_path,
-        public_key_path,
+        registry_path,
     )
 
 
@@ -307,8 +340,8 @@ def test_approved_execution_creates_artifacts(
         key_path,
         "--approval",
         tmp_path / "execute-approval.json",
-        "--approver-public-key",
-        tmp_path / "execute-approver-public.pem",
+        "--approver-registry",
+        tmp_path / "execute-approver-registry.json",
         "--output-dir",
         output_dir,
     )
@@ -354,8 +387,8 @@ def test_rotated_registry_revokes_old_signer(
         key_path,
         "--approval",
         tmp_path / "execute-approval.json",
-        "--approver-public-key",
-        tmp_path / "execute-approver-public.pem",
+        "--approver-registry",
+        tmp_path / "execute-approver-registry.json",
         "--output-dir",
         output_dir,
     )
@@ -413,8 +446,8 @@ def test_rotated_manifest_uses_new_key(
         key_path,
         "--approval",
         tmp_path / "execute-approval.json",
-        "--approver-public-key",
-        tmp_path / "execute-approver-public.pem",
+        "--approver-registry",
+        tmp_path / "execute-approver-registry.json",
         "--output-dir",
         output_dir,
     )
@@ -462,8 +495,8 @@ def test_rotation_result_records_approval(
         key_path,
         "--approval",
         tmp_path / "execute-approval.json",
-        "--approver-public-key",
-        tmp_path / "execute-approver-public.pem",
+        "--approver-registry",
+        tmp_path / "execute-approver-registry.json",
         "--output-dir",
         output_dir,
     )
@@ -519,7 +552,7 @@ def prepare_promotion_state(tmp_path):
 
     (
         approval_path,
-        approver_public_key,
+        approver_registry,
     ) = create_cli_signed_approval(
         tmp_path,
         promotion_plan,
@@ -543,8 +576,8 @@ def prepare_promotion_state(tmp_path):
         key_path,
         "--approval",
         approval_path,
-        "--approver-public-key",
-        approver_public_key,
+        "--approver-registry",
+        approver_registry,
         "--output-dir",
         candidate_dir,
     )
@@ -668,8 +701,8 @@ def test_promote_replaces_current_files(
         tmp_path / "promotion-plan.json",
         "--approval",
         tmp_path / "promotion-approval.json",
-        "--approver-public-key",
-        tmp_path / "promotion-approver-public.pem",
+        "--approver-registry",
+        tmp_path / "promotion-approver-registry.json",
     )
 
     assert result.returncode == 0
@@ -730,8 +763,8 @@ def test_promote_creates_audit_and_backups(
         tmp_path / "promotion-plan.json",
         "--approval",
         tmp_path / "promotion-approval.json",
-        "--approver-public-key",
-        tmp_path / "promotion-approver-public.pem",
+        "--approver-registry",
+        tmp_path / "promotion-approver-registry.json",
     )
 
     assert result.returncode == 0
@@ -794,8 +827,8 @@ def test_promote_reports_new_registry_fingerprint(
         tmp_path / "promotion-plan.json",
         "--approval",
         tmp_path / "promotion-approval.json",
-        "--approver-public-key",
-        tmp_path / "promotion-approver-public.pem",
+        "--approver-registry",
+        tmp_path / "promotion-approver-registry.json",
     )
 
     assert result.returncode == 0
@@ -806,7 +839,7 @@ def test_promote_reports_new_registry_fingerprint(
     )
 
 
-def test_promote_requires_trusted_approver_public_key(
+def test_promote_requires_trusted_approver_registry(
     tmp_path,
 ):
     (
@@ -846,7 +879,7 @@ def test_promote_requires_trusted_approver_public_key(
     assert result.returncode == 2
 
     assert (
-        "--approver-public-key"
+        "--approver-registry"
         in result.stderr
     )
 
@@ -1059,8 +1092,8 @@ def test_promote_replaces_current_files(
         tmp_path / "promotion-plan.json",
         "--approval",
         tmp_path / "promotion-approval.json",
-        "--approver-public-key",
-        tmp_path / "promotion-approver-public.pem",
+        "--approver-registry",
+        tmp_path / "promotion-approver-registry.json",
     )
 
     assert result.returncode == 0
@@ -1121,8 +1154,8 @@ def test_promote_creates_audit_and_backups(
         tmp_path / "promotion-plan.json",
         "--approval",
         tmp_path / "promotion-approval.json",
-        "--approver-public-key",
-        tmp_path / "promotion-approver-public.pem",
+        "--approver-registry",
+        tmp_path / "promotion-approver-registry.json",
     )
 
     assert result.returncode == 0
@@ -1185,8 +1218,8 @@ def test_promote_reports_new_registry_fingerprint(
         tmp_path / "promotion-plan.json",
         "--approval",
         tmp_path / "promotion-approval.json",
-        "--approver-public-key",
-        tmp_path / "promotion-approver-public.pem",
+        "--approver-registry",
+        tmp_path / "promotion-approver-registry.json",
     )
 
     assert result.returncode == 0

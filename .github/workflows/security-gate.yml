@@ -44,6 +44,21 @@ jobs:
             --signer-registry-sha256 "$POLICY_SIGNER_REGISTRY_SHA256" \
             --output ci-policy-integrity/security_policy_integrity.json
 
+
+      - name: Verify approver trust registry integrity
+        env:
+          APPROVER_REGISTRY_SHA256: ${{ vars.APPROVER_REGISTRY_SHA256 }}
+        run: |
+          if [ -z "$APPROVER_REGISTRY_SHA256" ]; then
+            echo "APPROVER_REGISTRY_SHA256 repository variable is required"
+            exit 1
+          fi
+
+          python scripts/verify_approver_registry_integrity.py \
+            --registry policies/security-gates/trusted-approvers.json \
+            --expected-sha256 "$APPROVER_REGISTRY_SHA256" \
+            --output ci-approver-integrity/approver_registry_integrity.json
+
       - name: Prepare passing assessment
         run: |
           python - <<'PY'
