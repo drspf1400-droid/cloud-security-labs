@@ -11,3 +11,5 @@ aws-security-assessment/security_assessment.py.v1
 report/*.jsonl
 checker-output.txt
 ci-report/
+report/generated/
+report/day23-demo/
