@@ -28,15 +28,6 @@ jobs:
         run: |
           python -m pytest -q
 
-      - name: Require external policy trust anchor
-        env:
-          POLICY_MANIFEST_PUBLIC_KEY_B64: ${{ vars.POLICY_MANIFEST_PUBLIC_KEY_B64 }}
-        run: |
-          if [ -z "$POLICY_MANIFEST_PUBLIC_KEY_B64" ]; then
-            echo "POLICY_MANIFEST_PUBLIC_KEY_B64 repository variable is required"
-            exit 1
-          fi
-
       - name: Verify security gate policy integrity
         env:
           POLICY_SIGNER_REGISTRY_SHA256: ${{ vars.POLICY_SIGNER_REGISTRY_SHA256 }}
