@@ -28,6 +28,13 @@ jobs:
         run: |
           python -m pytest -q
 
+      - name: Verify security gate policy integrity
+        run: |
+          python scripts/verify_security_policy_integrity.py \
+            --policy-dir policies/security-gates \
+            --manifest policies/security-gates/trusted-manifest.json \
+            --output ci-policy-integrity/security_policy_integrity.json
+
       - name: Prepare passing assessment
         run: |
           python - <<'PY'
@@ -173,5 +180,6 @@ jobs:
         with:
           name: security-assurance-gate-results
           path: |
+            ci-policy-integrity/
             ci-assurance-pass/
             ci-assurance-blocked/
