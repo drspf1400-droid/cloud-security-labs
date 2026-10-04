@@ -21,6 +21,7 @@
     "required_roles": [
       "security-admin",
       "platform-owner"
-    ]
+    ],
+    "require_distinct_role_holders": true
   }
 }

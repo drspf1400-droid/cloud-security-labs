@@ -636,3 +636,131 @@ def test_duplicate_required_roles_are_rejected():
                 "security-admin",
             ],
         )
+
+
+def test_distinct_role_holders_are_satisfied():
+    registry, keys = build_registry()
+
+    plan = sample_plan()
+
+    approvals = [
+        make_approval(
+            plan,
+            keys["security-admin"],
+            "security-admin",
+        ),
+        make_approval(
+            plan,
+            keys["platform-owner"],
+            "platform-owner",
+        ),
+    ]
+
+    result = (
+        verify_rotation_approval_quorum(
+            plan,
+            approvals,
+            registry,
+            required_approvals=2,
+            required_roles=[
+                "security-admin",
+                "platform-owner",
+            ],
+            require_distinct_role_holders=True,
+        )
+    )
+
+    assert result["valid"] is True
+
+    assert (
+        result[
+            "distinct_role_holders_satisfied"
+        ]
+        is True
+    )
+
+    assert result["role_assignments"] == {
+        "security-admin": "security-admin",
+        "platform-owner": "platform-owner",
+    }
+
+
+def test_one_multi_role_approver_cannot_cover_two_required_roles():
+    registry, keys = build_registry()
+
+    for entry in registry["approvers"]:
+        if (
+            entry["approver_id"]
+            == "security-admin"
+        ):
+            entry["roles"] = [
+                "security-admin",
+                "platform-owner",
+            ]
+
+    plan = sample_plan()
+
+    approvals = [
+        make_approval(
+            plan,
+            keys["security-admin"],
+            "security-admin",
+        ),
+        make_approval(
+            plan,
+            keys["risk-owner"],
+            "risk-owner",
+        ),
+    ]
+
+    result = (
+        verify_rotation_approval_quorum(
+            plan,
+            approvals,
+            registry,
+            required_approvals=2,
+            required_roles=[
+                "security-admin",
+                "platform-owner",
+            ],
+            require_distinct_role_holders=True,
+        )
+    )
+
+    assert result["valid"] is False
+
+    assert result["missing_roles"] == []
+
+    assert (
+        result["status"]
+        == "distinct_role_holders_not_satisfied"
+    )
+
+    assert (
+        result[
+            "distinct_role_holders_satisfied"
+        ]
+        is False
+    )
+
+    assert len(
+        result[
+            "distinct_role_unassigned_roles"
+        ]
+    ) == 1
+
+
+def test_distinct_role_holder_flag_must_be_boolean():
+    registry, _ = build_registry()
+
+    with pytest.raises(
+        ApprovalQuorumError
+    ):
+        verify_rotation_approval_quorum(
+            sample_plan(),
+            [],
+            registry,
+            required_approvals=1,
+            required_roles=[],
+            require_distinct_role_holders="yes",
+        )

@@ -194,6 +194,7 @@ def execute_policy_key_rotation(
     approver_registry,
     required_approvals=1,
     required_roles=None,
+    require_distinct_role_holders=False,
 ):
     """
     Execute an approved rotation plan.
@@ -229,6 +230,9 @@ def execute_policy_key_rotation(
             required_roles=(
                 required_roles
             ),
+            require_distinct_role_holders=(
+                require_distinct_role_holders
+            ),
         )
     )
 
@@ -249,13 +253,46 @@ def execute_policy_key_rotation(
 
     approval_quorum = {
         "status": (
-            quorum_verification[
-                "status"
-            ]
+            quorum_verification["status"]
         ),
         "required_approvals": (
             quorum_verification[
                 "required_approvals"
+            ]
+        ),
+        "required_roles": list(
+            quorum_verification[
+                "required_roles"
+            ]
+        ),
+        "satisfied_roles": list(
+            quorum_verification[
+                "satisfied_roles"
+            ]
+        ),
+        "missing_roles": list(
+            quorum_verification[
+                "missing_roles"
+            ]
+        ),
+        "require_distinct_role_holders": (
+            quorum_verification[
+                "require_distinct_role_holders"
+            ]
+        ),
+        "distinct_role_holders_satisfied": (
+            quorum_verification[
+                "distinct_role_holders_satisfied"
+            ]
+        ),
+        "role_assignments": deepcopy(
+            quorum_verification[
+                "role_assignments"
+            ]
+        ),
+        "distinct_role_unassigned_roles": list(
+            quorum_verification[
+                "distinct_role_unassigned_roles"
             ]
         ),
         "valid_approval_count": (

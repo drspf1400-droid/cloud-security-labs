@@ -260,6 +260,7 @@ def promote_policy_rotation(
     approver_registry,
     required_approvals=1,
     required_roles=None,
+    require_distinct_role_holders=False,
     current_manifest_path,
     current_registry_path,
     candidate_manifest_path,
@@ -286,6 +287,9 @@ def promote_policy_rotation(
             ),
             required_roles=(
                 required_roles
+            ),
+            require_distinct_role_holders=(
+                require_distinct_role_holders
             ),
         )
     )
@@ -441,6 +445,26 @@ def promote_policy_rotation(
             "missing_roles": list(
                 quorum_verification[
                     "missing_roles"
+                ]
+            ),
+            "require_distinct_role_holders": (
+                quorum_verification[
+                    "require_distinct_role_holders"
+                ]
+            ),
+            "distinct_role_holders_satisfied": (
+                quorum_verification[
+                    "distinct_role_holders_satisfied"
+                ]
+            ),
+            "role_assignments": deepcopy(
+                quorum_verification[
+                    "role_assignments"
+                ]
+            ),
+            "distinct_role_unassigned_roles": list(
+                quorum_verification[
+                    "distinct_role_unassigned_roles"
                 ]
             ),
             "valid_approval_count": (

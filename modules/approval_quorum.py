@@ -18,6 +18,7 @@ def verify_rotation_approval_quorum(
     *,
     required_approvals=2,
     required_roles=None,
+    require_distinct_role_holders=False,
 ):
     """
     Verify independently signed approvals.
@@ -81,6 +82,15 @@ def verify_rotation_approval_quorum(
     ):
         raise ApprovalQuorumError(
             "required_roles must be unique"
+        )
+
+    if not isinstance(
+        require_distinct_role_holders,
+        bool,
+    ):
+        raise ApprovalQuorumError(
+            "require_distinct_role_holders "
+            "must be a boolean"
         )
 
     results = []
@@ -190,9 +200,103 @@ def verify_rotation_approval_quorum(
 
     roles_met = not missing_roles
 
+    role_candidates = {}
+
+    for role in required_roles:
+        role_candidates[role] = [
+            (
+                item.get("approved_by")
+                or item.get("approver_id")
+            )
+            for item in accepted
+            if role in item.get(
+                "approver_roles",
+                [],
+            )
+        ]
+
+    role_assignments = {}
+    distinct_role_unassigned_roles = []
+
+    if require_distinct_role_holders:
+        approver_to_role = {}
+
+        def assign_role(
+            role,
+            visited,
+        ):
+            for approver_id in (
+                role_candidates[role]
+            ):
+                if approver_id in visited:
+                    continue
+
+                visited.add(
+                    approver_id
+                )
+
+                previous_role = (
+                    approver_to_role.get(
+                        approver_id
+                    )
+                )
+
+                if (
+                    previous_role is None
+                    or assign_role(
+                        previous_role,
+                        visited,
+                    )
+                ):
+                    approver_to_role[
+                        approver_id
+                    ] = role
+
+                    return True
+
+            return False
+
+        for role in required_roles:
+            assign_role(
+                role,
+                set(),
+            )
+
+        role_assignments = {
+            role: approver_id
+            for (
+                approver_id,
+                role,
+            ) in approver_to_role.items()
+        }
+
+        distinct_role_unassigned_roles = [
+            role
+            for role in required_roles
+            if role not in role_assignments
+        ]
+
+    else:
+        for role in required_roles:
+            candidates = (
+                role_candidates[role]
+            )
+
+            if candidates:
+                role_assignments[
+                    role
+                ] = candidates[0]
+
+    distinct_role_holders_satisfied = (
+        not distinct_role_unassigned_roles
+        if require_distinct_role_holders
+        else True
+    )
+
     quorum_met = (
         approval_count_met
         and roles_met
+        and distinct_role_holders_satisfied
     )
 
     if quorum_met:
@@ -203,9 +307,14 @@ def verify_rotation_approval_quorum(
             "quorum_not_satisfied"
         )
 
-    else:
+    elif not roles_met:
         status = (
             "required_roles_not_satisfied"
+        )
+
+    else:
+        status = (
+            "distinct_role_holders_not_satisfied"
         )
 
     return {
@@ -222,6 +331,18 @@ def verify_rotation_approval_quorum(
         ),
         "missing_roles": (
             missing_roles
+        ),
+        "require_distinct_role_holders": (
+            require_distinct_role_holders
+        ),
+        "distinct_role_holders_satisfied": (
+            distinct_role_holders_satisfied
+        ),
+        "role_assignments": (
+            role_assignments
+        ),
+        "distinct_role_unassigned_roles": (
+            distinct_role_unassigned_roles
         ),
         "valid_approval_count": (
             valid_count
