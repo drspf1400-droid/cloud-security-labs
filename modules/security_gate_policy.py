@@ -30,6 +30,7 @@ REQUIRED_GATE_FIELDS = {
 REQUIRED_ROTATION_APPROVAL_FIELDS = {
     "required_approvals",
     "required_roles",
+    "require_distinct_role_holders",
 }
 
 
@@ -232,6 +233,18 @@ def validate_security_gate_policy(
         raise SecurityGatePolicyError(
             "rotation_approval.required_roles "
             "must contain non-empty strings"
+        )
+
+    if not isinstance(
+        rotation_approval[
+            "require_distinct_role_holders"
+        ],
+        bool,
+    ):
+        raise SecurityGatePolicyError(
+            "rotation_approval."
+            "require_distinct_role_holders "
+            "must be a boolean"
         )
 
     return True

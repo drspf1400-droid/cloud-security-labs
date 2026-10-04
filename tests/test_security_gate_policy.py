@@ -109,7 +109,8 @@ def test_environment_mismatch_is_rejected(
         },
         "rotation_approval": {
             "required_approvals": 1,
-            "required_roles": []
+            "required_roles": [],
+            "require_distinct_role_holders": False
         }
     }
 
@@ -143,7 +144,8 @@ def test_negative_limit_is_rejected():
         },
         "rotation_approval": {
             "required_approvals": 1,
-            "required_roles": []
+            "required_roles": [],
+            "require_distinct_role_holders": False
         }
     }
 
@@ -225,7 +227,8 @@ def test_invalid_rotation_approval_quorum_is_rejected():
         },
         "rotation_approval": {
             "required_approvals": 0,
-            "required_roles": []
+            "required_roles": [],
+            "require_distinct_role_holders": False
         }
     }
 
@@ -277,7 +280,67 @@ def test_duplicate_required_policy_roles_are_rejected():
             "required_roles": [
                 "security-admin",
                 "security-admin"
-            ]
+            ],
+            "require_distinct_role_holders": True
+        }
+    }
+
+    with pytest.raises(
+        SecurityGatePolicyError
+    ):
+        validate_security_gate_policy(
+            policy
+        )
+
+
+def test_distinct_role_holder_policy_by_environment():
+    lab = load_security_gate_policy("lab")
+    staging = load_security_gate_policy("staging")
+    production = load_security_gate_policy(
+        "production"
+    )
+
+    assert (
+        lab["rotation_approval"][
+            "require_distinct_role_holders"
+        ]
+        is False
+    )
+
+    assert (
+        staging["rotation_approval"][
+            "require_distinct_role_holders"
+        ]
+        is False
+    )
+
+    assert (
+        production["rotation_approval"][
+            "require_distinct_role_holders"
+        ]
+        is True
+    )
+
+
+def test_distinct_role_holder_policy_must_be_boolean():
+    policy = {
+        "policy_version": "1.0",
+        "policy_name": "invalid-distinct-role",
+        "environment": "production",
+        "gate": {
+            "fail_on_assurance_states": [],
+            "fail_on_trust_decisions": [],
+            "max_critical_findings": 0,
+            "max_failed_executions": 0,
+            "max_blocked_executions": 0
+        },
+        "rotation_approval": {
+            "required_approvals": 2,
+            "required_roles": [
+                "security-admin",
+                "platform-owner"
+            ],
+            "require_distinct_role_holders": "yes"
         }
     }
 

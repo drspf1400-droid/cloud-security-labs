@@ -14,6 +14,7 @@
   },
   "rotation_approval": {
     "required_approvals": 1,
-    "required_roles": []
+    "required_roles": [],
+    "require_distinct_role_holders": false
   }
 }
