@@ -420,3 +420,86 @@ def consume_approvals(
     )
 
     return source
+
+
+def canonical_approval_usage_ledger_bytes(
+    ledger,
+):
+    validate_approval_usage_ledger(
+        ledger
+    )
+
+    return json.dumps(
+        ledger,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+
+
+def approval_usage_ledger_fingerprint(
+    ledger,
+):
+    return hashlib.sha256(
+        canonical_approval_usage_ledger_bytes(
+            ledger
+        )
+    ).hexdigest()
+
+
+def verify_approval_usage_ledger_integrity(
+    ledger,
+    expected_sha256,
+):
+    validate_approval_usage_ledger(
+        ledger
+    )
+
+    if (
+        not isinstance(
+            expected_sha256,
+            str,
+        )
+        or len(expected_sha256) != 64
+    ):
+        raise ApprovalUsageLedgerError(
+            "expected_sha256 must be a "
+            "64-character SHA-256 value"
+        )
+
+    try:
+        int(expected_sha256, 16)
+    except ValueError as exc:
+        raise ApprovalUsageLedgerError(
+            "expected_sha256 must be hexadecimal"
+        ) from exc
+
+    expected = (
+        expected_sha256
+        .strip()
+        .lower()
+    )
+
+    actual = (
+        approval_usage_ledger_fingerprint(
+            ledger
+        )
+    )
+
+    matches = (
+        actual == expected
+    )
+
+    return {
+        "valid": matches,
+        "status": (
+            "ledger_integrity_verified"
+            if matches
+            else "ledger_integrity_mismatch"
+        ),
+        "expected_sha256": expected,
+        "actual_sha256": actual,
+        "ledger_id": ledger[
+            "ledger_id"
+        ],
+    }

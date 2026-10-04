@@ -34,6 +34,7 @@ REQUIRED_ROTATION_APPROVAL_FIELDS = {
     "max_approval_age_seconds",
     "require_action_scope",
     "require_replay_protection",
+    "require_ledger_integrity_pin",
 }
 
 
@@ -297,6 +298,18 @@ def validate_security_gate_policy(
         raise SecurityGatePolicyError(
             "rotation_approval."
             "require_replay_protection "
+            "must be a boolean"
+        )
+
+    if not isinstance(
+        rotation_approval[
+            "require_ledger_integrity_pin"
+        ],
+        bool,
+    ):
+        raise SecurityGatePolicyError(
+            "rotation_approval."
+            "require_ledger_integrity_pin "
             "must be a boolean"
         )
 

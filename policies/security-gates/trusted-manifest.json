@@ -7,17 +7,17 @@
     "lab": {
       "policy_name": "lab-security-gate",
       "policy_version": "1.0",
-      "fingerprint": "02f3f08193ac4073af640534cee29b450a8228a5050e66ffbc48f3058be0ed64"
+      "fingerprint": "b37c10e38f90c7ec36b634201b72ac06914f107487cf88fe526b18bd12b55a4e"
     },
     "production": {
       "policy_name": "production-security-gate",
       "policy_version": "1.0",
-      "fingerprint": "98e3d617b09f1a41ff13498d4f3237174b20a704cd8c26cbcd03505b3b29a018"
+      "fingerprint": "b0f6ee166e93e9be3cf7ff8977e6a06dbf3a035aebc5b8177d58cc0bd81b131f"
     },
     "staging": {
       "policy_name": "staging-security-gate",
       "policy_version": "1.0",
-      "fingerprint": "749c7a2e457663b2f37b5013b48748d2269ac6ee528003712ba5847d3ead6e94"
+      "fingerprint": "a66c6513bdd3fe380e5ba875f98967374a54adf5d7e2a1e079f6e3705b7ea4cf"
     }
   },
   "signature": {
@@ -25,6 +25,6 @@
     "signer_id": "security-policy-authority",
     "key_id": "policy-manifest-key-001",
     "key_fingerprint": "7211e6eed169e6766142690188ce3a1ec467ae867aec120065fcaeb77bc17c58",
-    "value": "RoWInHy9edsuNTUI5Wh5pjQW4yD8exIo+2fbWr9CNYDj50DEEunlmxU6vJODv7+k23IzJE5d4dPSJj93N4loAA=="
+    "value": "9ZPxxKp6PdYsqdTxzD2lMz4K/nLiVMkQokqI/2ILY9HAq3wVRi9EfO0gyFO5tUhOEbYCBGTgI9cRcgNtUysECw=="
   }
 }
