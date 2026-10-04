@@ -1850,6 +1850,8 @@ def test_production_quorum_policy_cannot_be_lowered_by_cli(
         approver_registry,
         "--required-approvals",
         "1",
+        "--approval-usage-ledger",
+        tmp_path / "production-quorum-ledger.json",
         "--output-dir",
         tmp_path / "candidate",
     )
@@ -1899,6 +1901,8 @@ def test_production_rejects_two_valid_approvals_with_wrong_roles(
         approver_registry,
         "--required-approvals",
         "1",
+        "--approval-usage-ledger",
+        tmp_path / "production-role-ledger.json",
         "--output-dir",
         tmp_path / "candidate-role-mismatch",
     )
@@ -1950,6 +1954,8 @@ def test_production_rejects_multi_role_approver_covering_two_roles(
         approver_registry,
         "--required-approvals",
         "1",
+        "--approval-usage-ledger",
+        tmp_path / "production-distinct-role-ledger.json",
         "--output-dir",
         (
             tmp_path
@@ -2009,6 +2015,8 @@ def test_production_accepts_fresh_approvals(
         approval_paths[1],
         "--approver-registry",
         approver_registry,
+        "--approval-usage-ledger",
+        tmp_path / "production-fresh-ledger.json",
         "--output-dir",
         output_dir,
     )
@@ -2080,6 +2088,8 @@ def test_production_rejects_expired_approval(
         approval_paths[1],
         "--approver-registry",
         approver_registry,
+        "--approval-usage-ledger",
+        tmp_path / "production-expired-ledger.json",
         "--output-dir",
         tmp_path
         / "expired-production-candidate",
@@ -2186,6 +2196,8 @@ def test_production_execute_rejects_promote_scoped_approvals(
         approval_paths[1],
         "--approver-registry",
         approver_registry,
+        "--approval-usage-ledger",
+        tmp_path / "production-scope-ledger.json",
         "--output-dir",
         tmp_path / "wrong-scope-candidate",
     )
@@ -2257,6 +2269,8 @@ def test_production_promotion_requires_promote_scope(
         execute_approvals[1],
         "--approver-registry",
         execute_registry,
+        "--approval-usage-ledger",
+        tmp_path / "production-promotion-scope-ledger.json",
     )
 
     assert rejected.returncode == 1
@@ -2309,8 +2323,280 @@ def test_production_promotion_requires_promote_scope(
         promote_approvals[1],
         "--approver-registry",
         promote_registry,
+        "--approval-usage-ledger",
+        tmp_path / "production-promotion-scope-ledger.json",
     )
 
     assert accepted.returncode == 0, (
         accepted.stderr
+    )
+
+
+def test_production_execute_persists_ledger_and_blocks_replay(
+    tmp_path,
+):
+    result, key_path, plan_path, _ = (
+        create_plan(tmp_path)
+    )
+
+    assert result.returncode == 0
+
+    (
+        approval_paths,
+        approver_registry,
+    ) = create_cli_production_freshness_approvals(
+        tmp_path,
+        plan_path,
+        [
+            "2026-10-04T09:10:00+00:00",
+            "2026-10-04T09:20:00+00:00",
+        ],
+        approval_scope="execute",
+    )
+
+    ledger_path = (
+        tmp_path
+        / "approval-usage-ledger.json"
+    )
+
+    first = run_cli(
+        "execute",
+        "--environment",
+        "production",
+        "--plan",
+        plan_path,
+        "--manifest",
+        MANIFEST,
+        "--registry",
+        REGISTRY,
+        "--new-private-key",
+        key_path,
+        "--approval",
+        approval_paths[0],
+        "--approval",
+        approval_paths[1],
+        "--approver-registry",
+        approver_registry,
+        "--approval-usage-ledger",
+        ledger_path,
+        "--output-dir",
+        tmp_path / "first-candidate",
+    )
+
+    assert first.returncode == 0, (
+        first.stderr
+    )
+
+    assert ledger_path.exists()
+
+    ledger = json.loads(
+        ledger_path.read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert (
+        len(
+            ledger[
+                "consumed_approvals"
+            ]
+        )
+        == 2
+    )
+
+    second = run_cli(
+        "execute",
+        "--environment",
+        "production",
+        "--plan",
+        plan_path,
+        "--manifest",
+        MANIFEST,
+        "--registry",
+        REGISTRY,
+        "--new-private-key",
+        key_path,
+        "--approval",
+        approval_paths[0],
+        "--approval",
+        approval_paths[1],
+        "--approver-registry",
+        approver_registry,
+        "--approval-usage-ledger",
+        ledger_path,
+        "--output-dir",
+        tmp_path / "replay-candidate",
+    )
+
+    assert second.returncode == 1
+
+    assert (
+        "approval_replay_not_satisfied"
+        in second.stderr
+    )
+
+
+def test_production_execute_requires_usage_ledger(
+    tmp_path,
+):
+    result, key_path, plan_path, _ = (
+        create_plan(tmp_path)
+    )
+
+    assert result.returncode == 0
+
+    (
+        approval_paths,
+        approver_registry,
+    ) = create_cli_production_freshness_approvals(
+        tmp_path,
+        plan_path,
+        [
+            "2026-10-04T09:10:00+00:00",
+            "2026-10-04T09:20:00+00:00",
+        ],
+        approval_scope="execute",
+    )
+
+    execute = run_cli(
+        "execute",
+        "--environment",
+        "production",
+        "--plan",
+        plan_path,
+        "--manifest",
+        MANIFEST,
+        "--registry",
+        REGISTRY,
+        "--new-private-key",
+        key_path,
+        "--approval",
+        approval_paths[0],
+        "--approval",
+        approval_paths[1],
+        "--approver-registry",
+        approver_registry,
+        "--output-dir",
+        tmp_path / "candidate",
+    )
+
+    assert execute.returncode == 1
+
+    assert (
+        "--approval-usage-ledger is required"
+        in execute.stderr
+    )
+
+
+def test_production_promotion_blocks_replayed_approvals(
+    tmp_path,
+):
+    (
+        candidate_dir,
+        current_manifest,
+        current_registry,
+    ) = prepare_promotion_state(
+        tmp_path
+    )
+
+    plan_path = (
+        tmp_path
+        / "promotion-plan.json"
+    )
+
+    (
+        approval_paths,
+        approver_registry,
+    ) = create_cli_production_freshness_approvals(
+        tmp_path,
+        plan_path,
+        [
+            "2026-10-04T09:40:00+00:00",
+            "2026-10-04T09:50:00+00:00",
+        ],
+        approval_scope="promote",
+    )
+
+    ledger_path = (
+        tmp_path
+        / "promotion-usage-ledger.json"
+    )
+
+    first = run_cli(
+        "promote",
+        "--environment",
+        "production",
+        "--current-manifest",
+        current_manifest,
+        "--current-registry",
+        current_registry,
+        "--candidate-manifest",
+        candidate_dir
+        / "trusted-manifest.json",
+        "--candidate-registry",
+        candidate_dir
+        / "trusted-policy-signers.json",
+        "--backup-dir",
+        tmp_path / "backup-first",
+        "--audit-output",
+        tmp_path / "audit-first.json",
+        "--promoted-by",
+        "security-admin",
+        "--promoted-at",
+        "2026-10-04T10:30:00+00:00",
+        "--plan",
+        plan_path,
+        "--approval",
+        approval_paths[0],
+        "--approval",
+        approval_paths[1],
+        "--approver-registry",
+        approver_registry,
+        "--approval-usage-ledger",
+        ledger_path,
+    )
+
+    assert first.returncode == 0, (
+        first.stderr
+    )
+
+    second = run_cli(
+        "promote",
+        "--environment",
+        "production",
+        "--current-manifest",
+        current_manifest,
+        "--current-registry",
+        current_registry,
+        "--candidate-manifest",
+        candidate_dir
+        / "trusted-manifest.json",
+        "--candidate-registry",
+        candidate_dir
+        / "trusted-policy-signers.json",
+        "--backup-dir",
+        tmp_path / "backup-replay",
+        "--audit-output",
+        tmp_path / "audit-replay.json",
+        "--promoted-by",
+        "security-admin",
+        "--promoted-at",
+        "2026-10-04T10:40:00+00:00",
+        "--plan",
+        plan_path,
+        "--approval",
+        approval_paths[0],
+        "--approval",
+        approval_paths[1],
+        "--approver-registry",
+        approver_registry,
+        "--approval-usage-ledger",
+        ledger_path,
+    )
+
+    assert second.returncode == 1
+
+    assert (
+        "approval_replay_not_satisfied"
+        in second.stderr
     )

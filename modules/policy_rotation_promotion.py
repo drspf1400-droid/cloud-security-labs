@@ -11,6 +11,10 @@ from pathlib import Path
 
 from modules.approval_quorum import verify_rotation_approval_quorum
 
+from modules.approval_usage_ledger import (
+    consume_approvals,
+)
+
 from modules.policy_signer_registry import (
     evaluate_policy_manifest_trust,
     get_policy_signer,
@@ -263,6 +267,8 @@ def promote_policy_rotation(
     require_distinct_role_holders=False,
     max_approval_age_seconds=None,
     required_scope=None,
+    approval_usage_ledger=None,
+    require_replay_protection=False,
     current_manifest_path,
     current_registry_path,
     candidate_manifest_path,
@@ -308,6 +314,12 @@ def promote_policy_rotation(
             required_scope=(
                 required_scope
             ),
+            approval_usage_ledger=(
+                approval_usage_ledger
+            ),
+            require_unused_approvals=(
+                require_replay_protection
+            ),
         )
     )
 
@@ -324,6 +336,53 @@ def promote_policy_rotation(
         raise PolicyRotationPromotionError(
             "promoted_by is required"
         )
+
+    accepted_approval_artifacts = [
+        approvals[
+            item["approval_index"]
+        ]
+        for item in quorum_verification[
+            "accepted_approvals"
+        ]
+    ]
+
+    updated_approval_usage_ledger = (
+        approval_usage_ledger
+    )
+
+    if require_replay_protection:
+        updated_approval_usage_ledger = (
+            consume_approvals(
+                approval_usage_ledger,
+                accepted_approval_artifacts,
+                action="promote",
+                consumed_at=promoted_at,
+            )
+        )
+
+    approval_usage = {
+        "replay_protection_enabled": (
+            require_replay_protection
+        ),
+        "ledger_id": (
+            updated_approval_usage_ledger.get(
+                "ledger_id"
+            )
+            if updated_approval_usage_ledger
+            is not None
+            else None
+        ),
+        "consumed_approval_ids": [
+            approval.get(
+                "approval_id"
+            )
+            for approval in (
+                accepted_approval_artifacts
+                if require_replay_protection
+                else []
+            )
+        ],
+    }
 
     current_manifest_path = Path(
         current_manifest_path
@@ -435,6 +494,9 @@ def promote_policy_rotation(
         "status": "completed",
         "promoted_by": promoted_by,
         "promoted_at": promoted_at,
+        "approval_usage": deepcopy(
+            approval_usage
+        ),
         "approval_quorum": {
             "status": (
                 quorum_verification[
@@ -511,6 +573,19 @@ def promote_policy_rotation(
                     "scope_mismatch_count"
                 ]
             ),
+            "require_replay_protection": (
+                require_replay_protection
+            ),
+            "replayed_approval_count": (
+                quorum_verification[
+                    "replayed_approval_count"
+                ]
+            ),
+            "approval_id_collision_count": (
+                quorum_verification[
+                    "approval_id_collision_count"
+                ]
+            ),
             "valid_approval_count": (
                 quorum_verification[
                     "valid_approval_count"
@@ -555,10 +630,26 @@ def promote_policy_rotation(
         ),
     }
 
+    if require_replay_protection:
+        audit[
+            "approval_usage_ledger"
+        ] = deepcopy(
+            updated_approval_usage_ledger
+        )
+
     if audit_path is not None:
+        persisted_audit = deepcopy(
+            audit
+        )
+
+        persisted_audit.pop(
+            "approval_usage_ledger",
+            None,
+        )
+
         _write_json(
             audit_path,
-            audit,
+            persisted_audit,
         )
 
     return audit

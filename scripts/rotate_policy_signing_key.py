@@ -32,6 +32,11 @@ from modules.security_gate_policy import (
     load_security_gate_policy,
 )
 
+from modules.approval_usage_ledger import (
+    create_approval_usage_ledger,
+    validate_approval_usage_ledger,
+)
+
 from modules.rotation_approval import (
     RotationApprovalError,
     sign_rotation_approval,
@@ -89,6 +94,32 @@ def write_json(path, value):
         )
         + "\n",
         encoding="utf-8",
+    )
+
+
+def load_or_create_approval_usage_ledger(
+    path,
+    *,
+    created_at,
+):
+    if path is None:
+        return None
+
+    ledger_path = Path(path)
+
+    if ledger_path.exists():
+        ledger = load_json(
+            ledger_path
+        )
+
+        validate_approval_usage_ledger(
+            ledger
+        )
+
+        return ledger
+
+    return create_approval_usage_ledger(
+        created_at=created_at,
     )
 
 
@@ -336,6 +367,14 @@ def build_parser():
     )
 
     execute_parser.add_argument(
+        "--approval-usage-ledger",
+        help=(
+            "Persistent one-time approval "
+            "usage ledger"
+        ),
+    )
+
+    execute_parser.add_argument(
         "--output-dir",
         required=True,
     )
@@ -435,6 +474,14 @@ def build_parser():
         required=True,
         help=(
             "Trusted approver registry"
+        ),
+    )
+
+    promote_parser.add_argument(
+        "--approval-usage-ledger",
+        help=(
+            "Persistent one-time approval "
+            "usage ledger"
         ),
     )
 
@@ -629,6 +676,32 @@ def command_execute(args):
         else None
     )
 
+    policy_require_replay_protection = (
+        environment_policy[
+            "rotation_approval"
+        ]["require_replay_protection"]
+    )
+
+    if (
+        policy_require_replay_protection
+        and not args.approval_usage_ledger
+    ):
+        raise ValueError(
+            "--approval-usage-ledger is required "
+            "when replay protection is enabled"
+        )
+
+    approval_usage_ledger = (
+        load_or_create_approval_usage_ledger(
+            args.approval_usage_ledger,
+            created_at=(
+                plan["rotated_at"]
+            ),
+        )
+        if args.approval_usage_ledger
+        else None
+    )
+
     effective_required_approvals = max(
         policy_required_approvals,
         args.required_approvals,
@@ -670,7 +743,21 @@ def command_execute(args):
         required_scope=(
             policy_required_scope
         ),
+        approval_usage_ledger=(
+            approval_usage_ledger
+        ),
+        require_replay_protection=(
+            policy_require_replay_protection
+        ),
     )
+
+    if policy_require_replay_protection:
+        write_json(
+            args.approval_usage_ledger,
+            result[
+                "approval_usage_ledger"
+            ],
+        )
 
     output_dir = Path(
         args.output_dir
@@ -751,6 +838,9 @@ def command_execute(args):
             ),
             "required_scope": (
                 policy_required_scope
+            ),
+            "require_replay_protection": (
+                policy_require_replay_protection
             ),
             "effective_required_approvals": (
                 effective_required_approvals
@@ -858,6 +948,33 @@ def command_promote(args):
         else None
     )
 
+    policy_require_replay_protection = (
+        environment_policy[
+            "rotation_approval"
+        ]["require_replay_protection"]
+    )
+
+    if (
+        policy_require_replay_protection
+        and not args.approval_usage_ledger
+    ):
+        raise ValueError(
+            "--approval-usage-ledger is required "
+            "when replay protection is enabled"
+        )
+
+    approval_usage_ledger = (
+        load_or_create_approval_usage_ledger(
+            args.approval_usage_ledger,
+            created_at=(
+                args.promoted_at
+                or plan["rotated_at"]
+            ),
+        )
+        if args.approval_usage_ledger
+        else None
+    )
+
     effective_required_approvals = max(
         policy_required_approvals,
         args.required_approvals,
@@ -884,6 +1001,12 @@ def command_promote(args):
         required_scope=(
             policy_required_scope
         ),
+        approval_usage_ledger=(
+            approval_usage_ledger
+        ),
+        require_replay_protection=(
+            policy_require_replay_protection
+        ),
         current_manifest_path=(
             args.current_manifest
         ),
@@ -897,9 +1020,27 @@ def command_promote(args):
             args.candidate_registry
         ),
         backup_dir=args.backup_dir,
-        audit_path=args.audit_output,
+        audit_path=None,
         promoted_by=args.promoted_by,
         promoted_at=args.promoted_at,
+    )
+
+    updated_usage_ledger = (
+        audit.pop(
+            "approval_usage_ledger",
+            None,
+        )
+    )
+
+    if policy_require_replay_protection:
+        write_json(
+            args.approval_usage_ledger,
+            updated_usage_ledger,
+        )
+
+    write_json(
+        args.audit_output,
+        audit,
     )
 
     print("Policy key rotation promoted")

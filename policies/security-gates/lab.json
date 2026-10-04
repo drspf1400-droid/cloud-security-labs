@@ -17,6 +17,7 @@
     "required_roles": [],
     "require_distinct_role_holders": false,
     "max_approval_age_seconds": null,
-    "require_action_scope": false
+    "require_action_scope": false,
+    "require_replay_protection": false
   }
 }
