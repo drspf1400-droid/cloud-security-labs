@@ -22,6 +22,12 @@ from modules.policy_manifest_signing import (
 
 APPROVAL_VERSION = "1.0"
 
+APPROVAL_SCOPES = {
+    "rotation",
+    "execute",
+    "promote",
+}
+
 
 class RotationApprovalError(ValueError):
     pass
@@ -96,6 +102,7 @@ def sign_rotation_approval(
     initiated_by,
     approved_by,
     approved_at,
+    approval_scope="rotation",
     approval_id=None,
 ):
     """
@@ -143,6 +150,12 @@ def sign_rotation_approval(
             "initiator and approver must differ"
         )
 
+    if approval_scope not in APPROVAL_SCOPES:
+        raise RotationApprovalError(
+            "Unsupported approval_scope: "
+            f"{approval_scope}"
+        )
+
     parse_timestamp(
         approved_at
     )
@@ -185,6 +198,7 @@ def sign_rotation_approval(
             APPROVAL_VERSION
         ),
         "approval_id": approval_id,
+        "approval_scope": approval_scope,
         "rotation_id": rotation_id,
         "plan_sha256": (
             rotation_plan_fingerprint(
@@ -233,6 +247,7 @@ def verify_rotation_approval(
     approval,
     *,
     trusted_public_key=None,
+    required_scope=None,
 ):
     """
     Verify:
@@ -250,6 +265,15 @@ def verify_rotation_approval(
     approval_source = deepcopy(
         approval
     )
+
+    if (
+        required_scope is not None
+        and required_scope not in APPROVAL_SCOPES
+    ):
+        raise RotationApprovalError(
+            "Unsupported required_scope: "
+            f"{required_scope}"
+        )
 
     if (
         approval_source.get(
@@ -273,6 +297,30 @@ def verify_rotation_approval(
         return {
             "valid": False,
             "status": "not_approved",
+        }
+
+    approval_scope = (
+        approval_source.get(
+            "approval_scope",
+            "rotation",
+        )
+    )
+
+    if approval_scope not in APPROVAL_SCOPES:
+        return {
+            "valid": False,
+            "status": "invalid_approval_scope",
+        }
+
+    if (
+        required_scope is not None
+        and approval_scope != required_scope
+    ):
+        return {
+            "valid": False,
+            "status": "approval_scope_mismatch",
+            "approval_scope": approval_scope,
+            "required_scope": required_scope,
         }
 
     if (
@@ -480,6 +528,9 @@ def verify_rotation_approval(
             approval_source[
                 "approved_at"
             ]
+        ),
+        "approval_scope": (
+            approval_scope
         ),
         "approver_key_fingerprint": (
             embedded_fingerprint

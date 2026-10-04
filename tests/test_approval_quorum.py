@@ -108,6 +108,7 @@ def make_approval(
     plan,
     key,
     approver_id,
+    approval_scope="rotation",
 ):
     return sign_rotation_approval(
         plan,
@@ -117,6 +118,9 @@ def make_approval(
         ),
         approved_by=approver_id,
         approved_at=APPROVED_AT,
+        approval_scope=(
+            approval_scope
+        ),
     )
 
 
@@ -916,4 +920,100 @@ def test_max_approval_age_must_be_positive():
             reference_time=(
                 "2026-10-03T12:00:00+00:00"
             ),
+        )
+
+
+def test_execute_scoped_approvals_satisfy_required_scope():
+    registry, keys = build_registry()
+
+    plan = sample_plan()
+
+    approvals = [
+        make_approval(
+            plan,
+            keys["security-admin"],
+            "security-admin",
+            approval_scope="execute",
+        ),
+        make_approval(
+            plan,
+            keys["platform-owner"],
+            "platform-owner",
+            approval_scope="execute",
+        ),
+    ]
+
+    result = verify_rotation_approval_quorum(
+        plan,
+        approvals,
+        registry,
+        required_approvals=2,
+        required_scope="execute",
+    )
+
+    assert result["valid"] is True
+
+    assert (
+        result["required_scope"]
+        == "execute"
+    )
+
+    assert (
+        result["scope_mismatch_count"]
+        == 0
+    )
+
+
+def test_wrong_scope_does_not_count_toward_quorum():
+    registry, keys = build_registry()
+
+    plan = sample_plan()
+
+    approval = make_approval(
+        plan,
+        keys["security-admin"],
+        "security-admin",
+        approval_scope="promote",
+    )
+
+    result = verify_rotation_approval_quorum(
+        plan,
+        [approval],
+        registry,
+        required_approvals=1,
+        required_scope="execute",
+    )
+
+    assert result["valid"] is False
+
+    assert (
+        result["status"]
+        == "approval_scope_not_satisfied"
+    )
+
+    assert (
+        result["scope_mismatch_count"]
+        == 1
+    )
+
+    assert (
+        result["rejected_approvals"][0][
+            "status"
+        ]
+        == "approval_scope_mismatch"
+    )
+
+
+def test_required_scope_must_be_supported():
+    registry, _ = build_registry()
+
+    with pytest.raises(
+        ApprovalQuorumError
+    ):
+        verify_rotation_approval_quorum(
+            sample_plan(),
+            [],
+            registry,
+            required_approvals=1,
+            required_scope="unsupported",
         )

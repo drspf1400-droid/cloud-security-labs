@@ -40,6 +40,16 @@ def run_cli(*args):
 
     if (
         args
+        and args[0] == "approve"
+        and "--scope" not in args
+    ):
+        args[1:1] = [
+            "--scope",
+            "execute",
+        ]
+
+    if (
+        args
         and args[0] in {
             "execute",
             "promote",
@@ -457,6 +467,7 @@ def create_cli_production_freshness_approvals(
     tmp_path,
     plan_path,
     approved_times,
+    approval_scope="execute",
 ):
     from modules.approver_trust_registry import (
         create_approver_registry,
@@ -545,6 +556,8 @@ def create_cli_production_freshness_approvals(
             approver_id,
             "--approved-at",
             approved_times[index - 1],
+            "--scope",
+            approval_scope,
             "--approval-id",
             (
                 f"FRESHNESS-APPROVAL-{index:03d}"
@@ -2077,4 +2090,227 @@ def test_production_rejects_expired_approval(
     assert (
         "approval_freshness_not_satisfied"
         in execute.stderr
+    )
+
+
+def test_cli_creates_action_scoped_approval(
+    tmp_path,
+):
+    result, _, plan_path, _ = (
+        create_plan(tmp_path)
+    )
+
+    assert result.returncode == 0
+
+    key_path = (
+        tmp_path
+        / "scoped-approval-key.pem"
+    )
+
+    create_private_key(
+        key_path
+    )
+
+    approval_path = (
+        tmp_path
+        / "scoped-approval.json"
+    )
+
+    approval = run_cli(
+        "approve",
+        "--plan",
+        plan_path,
+        "--approver-private-key",
+        key_path,
+        "--approved-by",
+        "security-admin",
+        "--approved-at",
+        "2026-10-04T09:30:00+00:00",
+        "--scope",
+        "promote",
+        "--output",
+        approval_path,
+    )
+
+    assert approval.returncode == 0
+
+    saved = json.loads(
+        approval_path.read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert (
+        saved["approval_scope"]
+        == "promote"
+    )
+
+
+def test_production_execute_rejects_promote_scoped_approvals(
+    tmp_path,
+):
+    result, key_path, plan_path, _ = (
+        create_plan(tmp_path)
+    )
+
+    assert result.returncode == 0
+
+    (
+        approval_paths,
+        approver_registry,
+    ) = create_cli_production_freshness_approvals(
+        tmp_path,
+        plan_path,
+        [
+            "2026-10-04T09:10:00+00:00",
+            "2026-10-04T09:20:00+00:00",
+        ],
+        approval_scope="promote",
+    )
+
+    execute = run_cli(
+        "execute",
+        "--environment",
+        "production",
+        "--plan",
+        plan_path,
+        "--manifest",
+        MANIFEST,
+        "--registry",
+        REGISTRY,
+        "--new-private-key",
+        key_path,
+        "--approval",
+        approval_paths[0],
+        "--approval",
+        approval_paths[1],
+        "--approver-registry",
+        approver_registry,
+        "--output-dir",
+        tmp_path / "wrong-scope-candidate",
+    )
+
+    assert execute.returncode == 1
+
+    assert (
+        "approval_scope_not_satisfied"
+        in execute.stderr
+    )
+
+
+def test_production_promotion_requires_promote_scope(
+    tmp_path,
+):
+    (
+        candidate_dir,
+        current_manifest,
+        current_registry,
+    ) = prepare_promotion_state(
+        tmp_path
+    )
+
+    plan_path = (
+        tmp_path
+        / "promotion-plan.json"
+    )
+
+    (
+        execute_approvals,
+        execute_registry,
+    ) = create_cli_production_freshness_approvals(
+        tmp_path,
+        plan_path,
+        [
+            "2026-10-04T09:40:00+00:00",
+            "2026-10-04T09:50:00+00:00",
+        ],
+        approval_scope="execute",
+    )
+
+    rejected = run_cli(
+        "promote",
+        "--environment",
+        "production",
+        "--current-manifest",
+        current_manifest,
+        "--current-registry",
+        current_registry,
+        "--candidate-manifest",
+        candidate_dir
+        / "trusted-manifest.json",
+        "--candidate-registry",
+        candidate_dir
+        / "trusted-policy-signers.json",
+        "--backup-dir",
+        tmp_path / "wrong-scope-backup",
+        "--audit-output",
+        tmp_path / "wrong-scope-audit.json",
+        "--promoted-by",
+        "security-admin",
+        "--promoted-at",
+        "2026-10-04T10:30:00+00:00",
+        "--plan",
+        plan_path,
+        "--approval",
+        execute_approvals[0],
+        "--approval",
+        execute_approvals[1],
+        "--approver-registry",
+        execute_registry,
+    )
+
+    assert rejected.returncode == 1
+
+    assert (
+        "approval_scope_not_satisfied"
+        in rejected.stderr
+    )
+
+    (
+        promote_approvals,
+        promote_registry,
+    ) = create_cli_production_freshness_approvals(
+        tmp_path,
+        plan_path,
+        [
+            "2026-10-04T09:40:00+00:00",
+            "2026-10-04T09:50:00+00:00",
+        ],
+        approval_scope="promote",
+    )
+
+    accepted = run_cli(
+        "promote",
+        "--environment",
+        "production",
+        "--current-manifest",
+        current_manifest,
+        "--current-registry",
+        current_registry,
+        "--candidate-manifest",
+        candidate_dir
+        / "trusted-manifest.json",
+        "--candidate-registry",
+        candidate_dir
+        / "trusted-policy-signers.json",
+        "--backup-dir",
+        tmp_path / "correct-scope-backup",
+        "--audit-output",
+        tmp_path / "correct-scope-audit.json",
+        "--promoted-by",
+        "security-admin",
+        "--promoted-at",
+        "2026-10-04T10:30:00+00:00",
+        "--plan",
+        plan_path,
+        "--approval",
+        promote_approvals[0],
+        "--approval",
+        promote_approvals[1],
+        "--approver-registry",
+        promote_registry,
+    )
+
+    assert accepted.returncode == 0, (
+        accepted.stderr
     )

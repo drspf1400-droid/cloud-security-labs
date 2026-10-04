@@ -243,6 +243,19 @@ def build_parser():
     )
 
     approve_parser.add_argument(
+        "--scope",
+        choices=(
+            "rotation",
+            "execute",
+            "promote",
+        ),
+        default="rotation",
+        help=(
+            "Action this approval authorizes"
+        ),
+    )
+
+    approve_parser.add_argument(
         "--approval-id",
     )
 
@@ -518,6 +531,7 @@ def command_approve(args):
         ),
         approved_by=args.approved_by,
         approved_at=args.approved_at,
+        approval_scope=args.scope,
         approval_id=args.approval_id,
     )
 
@@ -542,6 +556,10 @@ def command_approve(args):
     print(
         "Approved by: "
         f"{approval['approved_by']}"
+    )
+    print(
+        "Approval scope: "
+        f"{approval['approval_scope']}"
     )
     print(
         "Plan SHA-256: "
@@ -599,6 +617,18 @@ def command_execute(args):
         ]["max_approval_age_seconds"]
     )
 
+    policy_require_action_scope = (
+        environment_policy[
+            "rotation_approval"
+        ]["require_action_scope"]
+    )
+
+    policy_required_scope = (
+        "execute"
+        if policy_require_action_scope
+        else None
+    )
+
     effective_required_approvals = max(
         policy_required_approvals,
         args.required_approvals,
@@ -636,6 +666,9 @@ def command_execute(args):
         ),
         max_approval_age_seconds=(
             policy_max_approval_age_seconds
+        ),
+        required_scope=(
+            policy_required_scope
         ),
     )
 
@@ -712,6 +745,12 @@ def command_execute(args):
             ),
             "max_approval_age_seconds": (
                 policy_max_approval_age_seconds
+            ),
+            "require_action_scope": (
+                policy_require_action_scope
+            ),
+            "required_scope": (
+                policy_required_scope
             ),
             "effective_required_approvals": (
                 effective_required_approvals
@@ -807,6 +846,18 @@ def command_promote(args):
         ]["max_approval_age_seconds"]
     )
 
+    policy_require_action_scope = (
+        environment_policy[
+            "rotation_approval"
+        ]["require_action_scope"]
+    )
+
+    policy_required_scope = (
+        "promote"
+        if policy_require_action_scope
+        else None
+    )
+
     effective_required_approvals = max(
         policy_required_approvals,
         args.required_approvals,
@@ -829,6 +880,9 @@ def command_promote(args):
         ),
         max_approval_age_seconds=(
             policy_max_approval_age_seconds
+        ),
+        required_scope=(
+            policy_required_scope
         ),
         current_manifest_path=(
             args.current_manifest

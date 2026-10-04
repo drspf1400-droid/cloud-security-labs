@@ -365,6 +365,8 @@ def verify_rotation_approval_with_registry(
     plan,
     approval,
     registry,
+    *,
+    required_scope=None,
 ):
     if not isinstance(approval, dict):
         return {
@@ -461,6 +463,9 @@ def verify_rotation_approval_with_registry(
             approval,
             trusted_public_key=(
                 trusted_key
+            ),
+            required_scope=(
+                required_scope
             ),
         )
     )

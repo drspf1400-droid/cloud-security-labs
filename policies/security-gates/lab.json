@@ -16,6 +16,7 @@
     "required_approvals": 1,
     "required_roles": [],
     "require_distinct_role_holders": false,
-    "max_approval_age_seconds": null
+    "max_approval_age_seconds": null,
+    "require_action_scope": false
   }
 }
