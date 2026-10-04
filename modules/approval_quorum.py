@@ -6,6 +6,11 @@ from modules.approver_trust_registry import (
     verify_rotation_approval_with_registry,
 )
 
+from modules.approval_usage_ledger import (
+    evaluate_approval_replay,
+    validate_approval_usage_ledger,
+)
+
 from modules.rotation_approval import (
     APPROVAL_SCOPES,
     parse_timestamp,
@@ -27,6 +32,8 @@ def verify_rotation_approval_quorum(
     max_approval_age_seconds=None,
     reference_time=None,
     required_scope=None,
+    approval_usage_ledger=None,
+    require_unused_approvals=False,
 ):
     """
     Verify independently signed approvals.
@@ -101,6 +108,31 @@ def verify_rotation_approval_quorum(
             "must be a boolean"
         )
 
+    if not isinstance(
+        require_unused_approvals,
+        bool,
+    ):
+        raise ApprovalQuorumError(
+            "require_unused_approvals "
+            "must be a boolean"
+        )
+
+    if require_unused_approvals:
+        if approval_usage_ledger is None:
+            raise ApprovalQuorumError(
+                "approval_usage_ledger is required "
+                "when replay protection is enabled"
+            )
+
+        try:
+            validate_approval_usage_ledger(
+                approval_usage_ledger
+            )
+        except Exception as exc:
+            raise ApprovalQuorumError(
+                "invalid approval usage ledger"
+            ) from exc
+
     if (
         required_scope is not None
         and required_scope not in APPROVAL_SCOPES
@@ -160,6 +192,8 @@ def verify_rotation_approval_quorum(
     expired_approval_count = 0
     future_approval_count = 0
     scope_mismatch_count = 0
+    replayed_approval_count = 0
+    approval_id_collision_count = 0
 
     for index, approval in enumerate(
         approvals
@@ -241,6 +275,40 @@ def verify_rotation_approval_quorum(
                 )
 
                 expired_approval_count += 1
+
+                rejected.append(item)
+                results.append(item)
+                continue
+
+        if require_unused_approvals:
+            replay = (
+                evaluate_approval_replay(
+                    approval_usage_ledger,
+                    approval,
+                )
+            )
+
+            item["replay_status"] = (
+                replay["status"]
+            )
+
+            if not replay["accepted"]:
+                item["valid"] = False
+                item["status"] = (
+                    replay["status"]
+                )
+
+                if (
+                    replay["status"]
+                    == "approval_replayed"
+                ):
+                    replayed_approval_count += 1
+
+                if (
+                    replay["status"]
+                    == "approval_id_collision"
+                ):
+                    approval_id_collision_count += 1
 
                 rejected.append(item)
                 results.append(item)
@@ -422,6 +490,17 @@ def verify_rotation_approval_quorum(
 
     elif (
         not approval_count_met
+        and (
+            replayed_approval_count
+            or approval_id_collision_count
+        )
+    ):
+        status = (
+            "approval_replay_not_satisfied"
+        )
+
+    elif (
+        not approval_count_met
         and scope_mismatch_count
     ):
         status = (
@@ -480,6 +559,15 @@ def verify_rotation_approval_quorum(
         ),
         "distinct_role_unassigned_roles": (
             distinct_role_unassigned_roles
+        ),
+        "require_unused_approvals": (
+            require_unused_approvals
+        ),
+        "replayed_approval_count": (
+            replayed_approval_count
+        ),
+        "approval_id_collision_count": (
+            approval_id_collision_count
         ),
         "required_scope": (
             required_scope

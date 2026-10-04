@@ -3,6 +3,10 @@
 from copy import deepcopy
 
 from modules.approval_quorum import verify_rotation_approval_quorum
+
+from modules.approval_usage_ledger import (
+    consume_approvals,
+)
 from uuid import uuid4
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (
@@ -197,6 +201,8 @@ def execute_policy_key_rotation(
     require_distinct_role_holders=False,
     max_approval_age_seconds=None,
     required_scope=None,
+    approval_usage_ledger=None,
+    require_replay_protection=False,
 ):
     """
     Execute an approved rotation plan.
@@ -246,6 +252,12 @@ def execute_policy_key_rotation(
             ),
             required_scope=(
                 required_scope
+            ),
+            approval_usage_ledger=(
+                approval_usage_ledger
+            ),
+            require_unused_approvals=(
+                require_replay_protection
             ),
         )
     )
@@ -337,6 +349,19 @@ def execute_policy_key_rotation(
         "scope_mismatch_count": (
             quorum_verification[
                 "scope_mismatch_count"
+            ]
+        ),
+        "require_replay_protection": (
+            require_replay_protection
+        ),
+        "replayed_approval_count": (
+            quorum_verification[
+                "replayed_approval_count"
+            ]
+        ),
+        "approval_id_collision_count": (
+            quorum_verification[
+                "approval_id_collision_count"
             ]
         ),
         "valid_approval_count": (
@@ -493,6 +518,53 @@ def execute_policy_key_rotation(
             "post-rotation trust verification"
         )
 
+    accepted_approval_artifacts = [
+        approvals[
+            item["approval_index"]
+        ]
+        for item in quorum_verification[
+            "accepted_approvals"
+        ]
+    ]
+
+    updated_approval_usage_ledger = (
+        approval_usage_ledger
+    )
+
+    if require_replay_protection:
+        updated_approval_usage_ledger = (
+            consume_approvals(
+                approval_usage_ledger,
+                accepted_approval_artifacts,
+                action="execute",
+                consumed_at=rotated_at,
+            )
+        )
+
+    approval_usage = {
+        "replay_protection_enabled": (
+            require_replay_protection
+        ),
+        "ledger_id": (
+            updated_approval_usage_ledger.get(
+                "ledger_id"
+            )
+            if updated_approval_usage_ledger
+            is not None
+            else None
+        ),
+        "consumed_approval_ids": [
+            approval.get(
+                "approval_id"
+            )
+            for approval in (
+                accepted_approval_artifacts
+                if require_replay_protection
+                else []
+            )
+        ],
+    }
+
     audit_event = {
         "action": (
             "controlled_policy_key_rotation"
@@ -504,6 +576,9 @@ def execute_policy_key_rotation(
         "approved_by": approved_by,
         "approval_quorum": deepcopy(
             approval_quorum
+        ),
+        "approval_usage": deepcopy(
+            approval_usage
         ),
         "source_manifest_id": (
             plan_source[
@@ -543,6 +618,12 @@ def execute_policy_key_rotation(
         "approved_by": approved_by,
         "approval_quorum": deepcopy(
             approval_quorum
+        ),
+        "approval_usage": deepcopy(
+            approval_usage
+        ),
+        "approval_usage_ledger": deepcopy(
+            updated_approval_usage_ledger
         ),
         "rotated_at": rotated_at,
         "old_signer": deepcopy(

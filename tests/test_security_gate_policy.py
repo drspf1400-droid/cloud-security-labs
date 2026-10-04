@@ -112,7 +112,8 @@ def test_environment_mismatch_is_rejected(
             "required_roles": [],
             "require_distinct_role_holders": False,
             "max_approval_age_seconds": None,
-            "require_action_scope": False
+            "require_action_scope": False,
+            "require_replay_protection": False
         }
     }
 
@@ -149,7 +150,8 @@ def test_negative_limit_is_rejected():
             "required_roles": [],
             "require_distinct_role_holders": False,
             "max_approval_age_seconds": None,
-            "require_action_scope": False
+            "require_action_scope": False,
+            "require_replay_protection": False
         }
     }
 
@@ -234,7 +236,8 @@ def test_invalid_rotation_approval_quorum_is_rejected():
             "required_roles": [],
             "require_distinct_role_holders": False,
             "max_approval_age_seconds": None,
-            "require_action_scope": False
+            "require_action_scope": False,
+            "require_replay_protection": False
         }
     }
 
@@ -289,7 +292,8 @@ def test_duplicate_required_policy_roles_are_rejected():
             ],
             "require_distinct_role_holders": True,
             "max_approval_age_seconds": 3600,
-            "require_action_scope": False
+            "require_action_scope": False,
+            "require_replay_protection": False
         }
     }
 
@@ -350,7 +354,8 @@ def test_distinct_role_holder_policy_must_be_boolean():
             ],
             "require_distinct_role_holders": "yes",
             "max_approval_age_seconds": 3600,
-            "require_action_scope": False
+            "require_action_scope": False,
+            "require_replay_protection": False
         }
     }
 
@@ -417,7 +422,8 @@ def test_invalid_approval_freshness_policy_is_rejected():
             ],
             "require_distinct_role_holders": True,
             "max_approval_age_seconds": 0,
-            "require_action_scope": False
+            "require_action_scope": False,
+            "require_replay_protection": False
         }
     }
 
@@ -484,7 +490,76 @@ def test_action_scope_policy_must_be_boolean():
             ],
             "require_distinct_role_holders": True,
             "max_approval_age_seconds": 3600,
-            "require_action_scope": "yes"
+            "require_action_scope": "yes",
+            "require_replay_protection": False
+        }
+    }
+
+    with pytest.raises(
+        SecurityGatePolicyError
+    ):
+        validate_security_gate_policy(
+            policy
+        )
+
+
+def test_replay_protection_policy_by_environment():
+    lab = load_security_gate_policy(
+        "lab"
+    )
+
+    staging = load_security_gate_policy(
+        "staging"
+    )
+
+    production = load_security_gate_policy(
+        "production"
+    )
+
+    assert (
+        lab["rotation_approval"][
+            "require_replay_protection"
+        ]
+        is False
+    )
+
+    assert (
+        staging["rotation_approval"][
+            "require_replay_protection"
+        ]
+        is False
+    )
+
+    assert (
+        production["rotation_approval"][
+            "require_replay_protection"
+        ]
+        is True
+    )
+
+
+def test_replay_protection_policy_must_be_boolean():
+    policy = {
+        "policy_version": "1.0",
+        "policy_name": "bad-replay-policy",
+        "environment": "production",
+        "gate": {
+            "fail_on_assurance_states": [],
+            "fail_on_trust_decisions": [],
+            "max_critical_findings": 0,
+            "max_failed_executions": 0,
+            "max_blocked_executions": 0
+        },
+        "rotation_approval": {
+            "required_approvals": 2,
+            "required_roles": [
+                "security-admin",
+                "platform-owner"
+            ],
+            "require_distinct_role_holders": True,
+            "max_approval_age_seconds": 3600,
+            "require_action_scope": True,
+            "require_replay_protection": "yes"
         }
     }
 
