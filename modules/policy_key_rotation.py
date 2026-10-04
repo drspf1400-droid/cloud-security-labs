@@ -195,6 +195,7 @@ def execute_policy_key_rotation(
     required_approvals=1,
     required_roles=None,
     require_distinct_role_holders=False,
+    max_approval_age_seconds=None,
 ):
     """
     Execute an approved rotation plan.
@@ -232,6 +233,15 @@ def execute_policy_key_rotation(
             ),
             require_distinct_role_holders=(
                 require_distinct_role_holders
+            ),
+            max_approval_age_seconds=(
+                max_approval_age_seconds
+            ),
+            reference_time=(
+                plan.get("rotated_at")
+                if max_approval_age_seconds
+                is not None
+                else None
             ),
         )
     )
@@ -293,6 +303,26 @@ def execute_policy_key_rotation(
         "distinct_role_unassigned_roles": list(
             quorum_verification[
                 "distinct_role_unassigned_roles"
+            ]
+        ),
+        "max_approval_age_seconds": (
+            quorum_verification[
+                "max_approval_age_seconds"
+            ]
+        ),
+        "reference_time": (
+            quorum_verification[
+                "reference_time"
+            ]
+        ),
+        "expired_approval_count": (
+            quorum_verification[
+                "expired_approval_count"
+            ]
+        ),
+        "future_approval_count": (
+            quorum_verification[
+                "future_approval_count"
             ]
         ),
         "valid_approval_count": (

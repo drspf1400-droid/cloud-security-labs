@@ -453,6 +453,133 @@ def create_cli_distinct_role_violation_approvals(
     )
 
 
+def create_cli_production_freshness_approvals(
+    tmp_path,
+    plan_path,
+    approved_times,
+):
+    from modules.approver_trust_registry import (
+        create_approver_registry,
+        register_approver,
+    )
+
+    from modules.policy_manifest_signing import (
+        public_key_to_base64,
+    )
+
+    if len(approved_times) != 2:
+        raise ValueError(
+            "approved_times must contain 2 values"
+        )
+
+    approvers = [
+        (
+            "security-admin",
+            ["security-admin"],
+            "freshness-security",
+        ),
+        (
+            "platform-owner",
+            ["platform-owner"],
+            "freshness-platform",
+        ),
+    ]
+
+    registry = create_approver_registry(
+        created_at=(
+            "2026-10-04T08:00:00+00:00"
+        ),
+        registry_id=(
+            "FRESHNESS-APPROVER-REGISTRY-001"
+        ),
+    )
+
+    approval_paths = []
+
+    for index, (
+        approver_id,
+        roles,
+        stem,
+    ) in enumerate(
+        approvers,
+        start=1,
+    ):
+        private_key_path = (
+            tmp_path
+            / f"{stem}-private.pem"
+        )
+
+        approval_path = (
+            tmp_path
+            / f"{stem}-approval.json"
+        )
+
+        private_key = create_private_key(
+            private_key_path
+        )
+
+        registry = register_approver(
+            registry,
+            approver_id=approver_id,
+            key_id=(
+                f"freshness-key-{index:03d}"
+            ),
+            public_key_b64=(
+                public_key_to_base64(
+                    private_key.public_key()
+                )
+            ),
+            registered_at=(
+                "2026-10-04T08:30:00+00:00"
+            ),
+            roles=roles,
+        )
+
+        approval = run_cli(
+            "approve",
+            "--plan",
+            plan_path,
+            "--approver-private-key",
+            private_key_path,
+            "--approved-by",
+            approver_id,
+            "--approved-at",
+            approved_times[index - 1],
+            "--approval-id",
+            (
+                f"FRESHNESS-APPROVAL-{index:03d}"
+            ),
+            "--output",
+            approval_path,
+        )
+
+        assert approval.returncode == 0, (
+            approval.stderr
+        )
+
+        approval_paths.append(
+            approval_path
+        )
+
+    registry_path = (
+        tmp_path
+        / "freshness-approver-registry.json"
+    )
+
+    registry_path.write_text(
+        json.dumps(
+            registry,
+            indent=2,
+        ) + "\n",
+        encoding="utf-8",
+    )
+
+    return (
+        approval_paths,
+        registry_path,
+    )
+
+
 def create_plan(tmp_path):
     key_path = (
         tmp_path
@@ -1821,5 +1948,133 @@ def test_production_rejects_multi_role_approver_covering_two_roles(
 
     assert (
         "distinct_role_holders_not_satisfied"
+        in execute.stderr
+    )
+
+
+def test_production_accepts_fresh_approvals(
+    tmp_path,
+):
+    result, key_path, plan_path, _ = (
+        create_plan(tmp_path)
+    )
+
+    assert result.returncode == 0
+
+    (
+        approval_paths,
+        approver_registry,
+    ) = create_cli_production_freshness_approvals(
+        tmp_path,
+        plan_path,
+        [
+            "2026-10-04T09:10:00+00:00",
+            "2026-10-04T09:20:00+00:00",
+        ],
+    )
+
+    output_dir = (
+        tmp_path
+        / "fresh-production-candidate"
+    )
+
+    execute = run_cli(
+        "execute",
+        "--environment",
+        "production",
+        "--plan",
+        plan_path,
+        "--manifest",
+        MANIFEST,
+        "--registry",
+        REGISTRY,
+        "--new-private-key",
+        key_path,
+        "--approval",
+        approval_paths[0],
+        "--approval",
+        approval_paths[1],
+        "--approver-registry",
+        approver_registry,
+        "--output-dir",
+        output_dir,
+    )
+
+    assert execute.returncode == 0, (
+        execute.stderr
+    )
+
+    saved = json.loads(
+        (
+            output_dir
+            / "policy-key-rotation-result.json"
+        ).read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert (
+        saved["policy_context"][
+            "max_approval_age_seconds"
+        ]
+        == 3600
+    )
+
+    assert (
+        saved["approval_quorum"][
+            "expired_approval_count"
+        ]
+        == 0
+    )
+
+
+def test_production_rejects_expired_approval(
+    tmp_path,
+):
+    result, key_path, plan_path, _ = (
+        create_plan(tmp_path)
+    )
+
+    assert result.returncode == 0
+
+    (
+        approval_paths,
+        approver_registry,
+    ) = create_cli_production_freshness_approvals(
+        tmp_path,
+        plan_path,
+        [
+            "2026-10-04T08:45:00+00:00",
+            "2026-10-04T09:20:00+00:00",
+        ],
+    )
+
+    execute = run_cli(
+        "execute",
+        "--environment",
+        "production",
+        "--plan",
+        plan_path,
+        "--manifest",
+        MANIFEST,
+        "--registry",
+        REGISTRY,
+        "--new-private-key",
+        key_path,
+        "--approval",
+        approval_paths[0],
+        "--approval",
+        approval_paths[1],
+        "--approver-registry",
+        approver_registry,
+        "--output-dir",
+        tmp_path
+        / "expired-production-candidate",
+    )
+
+    assert execute.returncode == 1
+
+    assert (
+        "approval_freshness_not_satisfied"
         in execute.stderr
     )

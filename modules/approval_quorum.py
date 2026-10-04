@@ -6,6 +6,10 @@ from modules.approver_trust_registry import (
     verify_rotation_approval_with_registry,
 )
 
+from modules.rotation_approval import (
+    parse_timestamp,
+)
+
 
 class ApprovalQuorumError(ValueError):
     pass
@@ -19,6 +23,8 @@ def verify_rotation_approval_quorum(
     required_approvals=2,
     required_roles=None,
     require_distinct_role_holders=False,
+    max_approval_age_seconds=None,
+    reference_time=None,
 ):
     """
     Verify independently signed approvals.
@@ -93,12 +99,53 @@ def verify_rotation_approval_quorum(
             "must be a boolean"
         )
 
+    if max_approval_age_seconds is not None:
+        if (
+            not isinstance(
+                max_approval_age_seconds,
+                int,
+            )
+            or isinstance(
+                max_approval_age_seconds,
+                bool,
+            )
+            or max_approval_age_seconds < 1
+        ):
+            raise ApprovalQuorumError(
+                "max_approval_age_seconds must be "
+                "a positive integer or null"
+            )
+
+        if reference_time is None:
+            raise ApprovalQuorumError(
+                "reference_time is required when "
+                "approval freshness is enforced"
+            )
+
+        try:
+            reference_timestamp = (
+                parse_timestamp(
+                    reference_time
+                )
+            )
+        except Exception as exc:
+            raise ApprovalQuorumError(
+                "reference_time must be a valid "
+                "timezone-aware timestamp"
+            ) from exc
+
+    else:
+        reference_timestamp = None
+
     results = []
     accepted = []
     rejected = []
 
     seen_approvers = set()
     satisfied_roles = set()
+
+    expired_approval_count = 0
+    future_approval_count = 0
 
     for index, approval in enumerate(
         approvals
@@ -127,6 +174,54 @@ def verify_rotation_approval_quorum(
                 item
             )
             continue
+
+        if (
+            max_approval_age_seconds
+            is not None
+        ):
+            approved_timestamp = (
+                parse_timestamp(
+                    verification[
+                        "approved_at"
+                    ]
+                )
+            )
+
+            age_seconds = (
+                reference_timestamp
+                - approved_timestamp
+            ).total_seconds()
+
+            item[
+                "approval_age_seconds"
+            ] = age_seconds
+
+            if age_seconds < 0:
+                item["valid"] = False
+                item["status"] = (
+                    "approval_from_future"
+                )
+
+                future_approval_count += 1
+
+                rejected.append(item)
+                results.append(item)
+                continue
+
+            if (
+                age_seconds
+                > max_approval_age_seconds
+            ):
+                item["valid"] = False
+                item["status"] = (
+                    "approval_expired"
+                )
+
+                expired_approval_count += 1
+
+                rejected.append(item)
+                results.append(item)
+                continue
 
         approver_id = (
             verification.get(
@@ -302,6 +397,17 @@ def verify_rotation_approval_quorum(
     if quorum_met:
         status = "quorum_satisfied"
 
+    elif (
+        not approval_count_met
+        and (
+            expired_approval_count
+            or future_approval_count
+        )
+    ):
+        status = (
+            "approval_freshness_not_satisfied"
+        )
+
     elif not approval_count_met:
         status = (
             "quorum_not_satisfied"
@@ -343,6 +449,18 @@ def verify_rotation_approval_quorum(
         ),
         "distinct_role_unassigned_roles": (
             distinct_role_unassigned_roles
+        ),
+        "max_approval_age_seconds": (
+            max_approval_age_seconds
+        ),
+        "reference_time": (
+            reference_time
+        ),
+        "expired_approval_count": (
+            expired_approval_count
+        ),
+        "future_approval_count": (
+            future_approval_count
         ),
         "valid_approval_count": (
             valid_count

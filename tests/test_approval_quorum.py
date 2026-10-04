@@ -764,3 +764,156 @@ def test_distinct_role_holder_flag_must_be_boolean():
             required_roles=[],
             require_distinct_role_holders="yes",
         )
+
+
+def test_fresh_approval_satisfies_freshness_policy():
+    registry, keys = build_registry()
+
+    plan = sample_plan()
+
+    approval = make_approval(
+        plan,
+        keys["security-admin"],
+        "security-admin",
+    )
+
+    result = (
+        verify_rotation_approval_quorum(
+            plan,
+            [approval],
+            registry,
+            required_approvals=1,
+            max_approval_age_seconds=3600,
+            reference_time=(
+                "2026-10-03T11:30:00+00:00"
+            ),
+        )
+    )
+
+    assert result["valid"] is True
+
+    assert (
+        result["expired_approval_count"]
+        == 0
+    )
+
+    assert (
+        result["future_approval_count"]
+        == 0
+    )
+
+
+def test_expired_approval_is_rejected():
+    registry, keys = build_registry()
+
+    plan = sample_plan()
+
+    approval = make_approval(
+        plan,
+        keys["security-admin"],
+        "security-admin",
+    )
+
+    result = (
+        verify_rotation_approval_quorum(
+            plan,
+            [approval],
+            registry,
+            required_approvals=1,
+            max_approval_age_seconds=3600,
+            reference_time=(
+                "2026-10-03T12:30:00+00:00"
+            ),
+        )
+    )
+
+    assert result["valid"] is False
+
+    assert (
+        result["status"]
+        == "approval_freshness_not_satisfied"
+    )
+
+    assert (
+        result["expired_approval_count"]
+        == 1
+    )
+
+    assert (
+        result["rejected_approvals"][0][
+            "status"
+        ]
+        == "approval_expired"
+    )
+
+
+def test_future_approval_is_rejected():
+    registry, keys = build_registry()
+
+    plan = sample_plan()
+
+    approval = make_approval(
+        plan,
+        keys["security-admin"],
+        "security-admin",
+    )
+
+    result = (
+        verify_rotation_approval_quorum(
+            plan,
+            [approval],
+            registry,
+            required_approvals=1,
+            max_approval_age_seconds=3600,
+            reference_time=(
+                "2026-10-03T10:30:00+00:00"
+            ),
+        )
+    )
+
+    assert result["valid"] is False
+
+    assert (
+        result["future_approval_count"]
+        == 1
+    )
+
+    assert (
+        result["rejected_approvals"][0][
+            "status"
+        ]
+        == "approval_from_future"
+    )
+
+
+def test_freshness_requires_reference_time():
+    registry, _ = build_registry()
+
+    with pytest.raises(
+        ApprovalQuorumError
+    ):
+        verify_rotation_approval_quorum(
+            sample_plan(),
+            [],
+            registry,
+            required_approvals=1,
+            max_approval_age_seconds=3600,
+        )
+
+
+def test_max_approval_age_must_be_positive():
+    registry, _ = build_registry()
+
+    with pytest.raises(
+        ApprovalQuorumError
+    ):
+        verify_rotation_approval_quorum(
+            sample_plan(),
+            [],
+            registry,
+            required_approvals=1,
+            max_approval_age_seconds=0,
+            reference_time=(
+                "2026-10-03T12:00:00+00:00"
+            ),
+        )

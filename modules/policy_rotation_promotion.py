@@ -261,6 +261,7 @@ def promote_policy_rotation(
     required_approvals=1,
     required_roles=None,
     require_distinct_role_holders=False,
+    max_approval_age_seconds=None,
     current_manifest_path,
     current_registry_path,
     candidate_manifest_path,
@@ -277,6 +278,9 @@ def promote_policy_rotation(
             else [approval]
         )
 
+    if promoted_at is None:
+        promoted_at = utc_now()
+
     quorum_verification = (
         verify_rotation_approval_quorum(
             plan,
@@ -290,6 +294,15 @@ def promote_policy_rotation(
             ),
             require_distinct_role_holders=(
                 require_distinct_role_holders
+            ),
+            max_approval_age_seconds=(
+                max_approval_age_seconds
+            ),
+            reference_time=(
+                promoted_at
+                if max_approval_age_seconds
+                is not None
+                else None
             ),
         )
     )
@@ -307,9 +320,6 @@ def promote_policy_rotation(
         raise PolicyRotationPromotionError(
             "promoted_by is required"
         )
-
-    if promoted_at is None:
-        promoted_at = utc_now()
 
     current_manifest_path = Path(
         current_manifest_path
@@ -465,6 +475,26 @@ def promote_policy_rotation(
             "distinct_role_unassigned_roles": list(
                 quorum_verification[
                     "distinct_role_unassigned_roles"
+                ]
+            ),
+            "max_approval_age_seconds": (
+                quorum_verification[
+                    "max_approval_age_seconds"
+                ]
+            ),
+            "reference_time": (
+                quorum_verification[
+                    "reference_time"
+                ]
+            ),
+            "expired_approval_count": (
+                quorum_verification[
+                    "expired_approval_count"
+                ]
+            ),
+            "future_approval_count": (
+                quorum_verification[
+                    "future_approval_count"
                 ]
             ),
             "valid_approval_count": (
