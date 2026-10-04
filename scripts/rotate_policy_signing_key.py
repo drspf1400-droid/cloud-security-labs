@@ -33,8 +33,10 @@ from modules.security_gate_policy import (
 )
 
 from modules.approval_usage_ledger import (
+    approval_usage_ledger_fingerprint,
     create_approval_usage_ledger,
     validate_approval_usage_ledger,
+    verify_approval_usage_ledger_integrity,
 )
 
 from modules.rotation_approval import (
@@ -121,6 +123,83 @@ def load_or_create_approval_usage_ledger(
     return create_approval_usage_ledger(
         created_at=created_at,
     )
+
+
+def load_verified_or_initialize_approval_usage_ledger(
+    path,
+    *,
+    created_at,
+    expected_sha256=None,
+    initialize=False,
+):
+    ledger_path = Path(path)
+
+    if ledger_path.exists():
+        if initialize:
+            raise ValueError(
+                "--initialize-approval-usage-ledger "
+                "cannot be used for an existing ledger"
+            )
+
+        ledger = load_json(
+            ledger_path
+        )
+
+        validate_approval_usage_ledger(
+            ledger
+        )
+
+        if not expected_sha256:
+            raise ValueError(
+                "--approval-usage-ledger-sha256 "
+                "is required for an existing ledger"
+            )
+
+        verification = (
+            verify_approval_usage_ledger_integrity(
+                ledger,
+                expected_sha256,
+            )
+        )
+
+        if not verification["valid"]:
+            raise ValueError(
+                "Approval usage ledger "
+                "integrity mismatch"
+            )
+
+        return ledger, verification
+
+    if not initialize:
+        raise FileNotFoundError(
+            "Approval usage ledger does not exist; "
+            "use --initialize-approval-usage-ledger "
+            "for explicit bootstrap"
+        )
+
+    if expected_sha256:
+        raise ValueError(
+            "--approval-usage-ledger-sha256 "
+            "cannot be supplied while initializing"
+        )
+
+    ledger = create_approval_usage_ledger(
+        created_at=created_at,
+    )
+
+    fingerprint = (
+        approval_usage_ledger_fingerprint(
+            ledger
+        )
+    )
+
+    return ledger, {
+        "valid": True,
+        "status": "ledger_initialized",
+        "expected_sha256": None,
+        "actual_sha256": fingerprint,
+        "ledger_id": ledger["ledger_id"],
+    }
 
 
 def load_private_key(path):
@@ -375,6 +454,23 @@ def build_parser():
     )
 
     execute_parser.add_argument(
+        "--approval-usage-ledger-sha256",
+        help=(
+            "Externally trusted SHA-256 pin "
+            "for the existing usage ledger"
+        ),
+    )
+
+    execute_parser.add_argument(
+        "--initialize-approval-usage-ledger",
+        action="store_true",
+        help=(
+            "Explicitly initialize a new usage "
+            "ledger when none exists"
+        ),
+    )
+
+    execute_parser.add_argument(
         "--output-dir",
         required=True,
     )
@@ -482,6 +578,23 @@ def build_parser():
         help=(
             "Persistent one-time approval "
             "usage ledger"
+        ),
+    )
+
+    promote_parser.add_argument(
+        "--approval-usage-ledger-sha256",
+        help=(
+            "Externally trusted SHA-256 pin "
+            "for the existing usage ledger"
+        ),
+    )
+
+    promote_parser.add_argument(
+        "--initialize-approval-usage-ledger",
+        action="store_true",
+        help=(
+            "Explicitly initialize a new usage "
+            "ledger when none exists"
         ),
     )
 
@@ -691,16 +804,39 @@ def command_execute(args):
             "when replay protection is enabled"
         )
 
-    approval_usage_ledger = (
-        load_or_create_approval_usage_ledger(
-            args.approval_usage_ledger,
-            created_at=(
-                plan["rotated_at"]
-            ),
-        )
-        if args.approval_usage_ledger
-        else None
+    policy_require_ledger_integrity_pin = (
+        environment_policy[
+            "rotation_approval"
+        ]["require_ledger_integrity_pin"]
     )
+
+    ledger_integrity = None
+
+    if policy_require_ledger_integrity_pin:
+        approval_usage_ledger, ledger_integrity = (
+            load_verified_or_initialize_approval_usage_ledger(
+                args.approval_usage_ledger,
+                created_at=plan["rotated_at"],
+                expected_sha256=(
+                    args.approval_usage_ledger_sha256
+                ),
+                initialize=(
+                    args.initialize_approval_usage_ledger
+                ),
+            )
+        )
+
+    else:
+        approval_usage_ledger = (
+            load_or_create_approval_usage_ledger(
+                args.approval_usage_ledger,
+                created_at=(
+                    plan["rotated_at"]
+                ),
+            )
+            if args.approval_usage_ledger
+            else None
+        )
 
     effective_required_approvals = max(
         policy_required_approvals,
@@ -751,12 +887,22 @@ def command_execute(args):
         ),
     )
 
+    output_ledger_sha256 = None
+
     if policy_require_replay_protection:
         write_json(
             args.approval_usage_ledger,
             result[
                 "approval_usage_ledger"
             ],
+        )
+
+        output_ledger_sha256 = (
+            approval_usage_ledger_fingerprint(
+                result[
+                    "approval_usage_ledger"
+                ]
+            )
         )
 
     output_dir = Path(
@@ -842,6 +988,9 @@ def command_execute(args):
             "require_replay_protection": (
                 policy_require_replay_protection
             ),
+            "require_ledger_integrity_pin": (
+                policy_require_ledger_integrity_pin
+            ),
             "effective_required_approvals": (
                 effective_required_approvals
             ),
@@ -855,6 +1004,12 @@ def command_execute(args):
         "new_signer": (
             result["new_signer"]
         ),
+        "approval_usage_ledger_integrity": {
+            "input": ledger_integrity,
+            "output_sha256": (
+                output_ledger_sha256
+            ),
+        },
         "verification": {
             "accepted": (
                 result["verification"]
@@ -887,6 +1042,12 @@ def command_execute(args):
         "Verification: "
         f"{summary['verification']['basis']}"
     )
+    if output_ledger_sha256:
+        print(
+            "Approval usage ledger SHA-256: "
+            f"{output_ledger_sha256}"
+        )
+
     print(f"Output: {output_dir}")
 
     return EXIT_OK
@@ -963,17 +1124,43 @@ def command_promote(args):
             "when replay protection is enabled"
         )
 
-    approval_usage_ledger = (
-        load_or_create_approval_usage_ledger(
-            args.approval_usage_ledger,
-            created_at=(
-                args.promoted_at
-                or plan["rotated_at"]
-            ),
-        )
-        if args.approval_usage_ledger
-        else None
+    policy_require_ledger_integrity_pin = (
+        environment_policy[
+            "rotation_approval"
+        ]["require_ledger_integrity_pin"]
     )
+
+    ledger_integrity = None
+
+    if policy_require_ledger_integrity_pin:
+        approval_usage_ledger, ledger_integrity = (
+            load_verified_or_initialize_approval_usage_ledger(
+                args.approval_usage_ledger,
+                created_at=(
+                    args.promoted_at
+                    or plan["rotated_at"]
+                ),
+                expected_sha256=(
+                    args.approval_usage_ledger_sha256
+                ),
+                initialize=(
+                    args.initialize_approval_usage_ledger
+                ),
+            )
+        )
+
+    else:
+        approval_usage_ledger = (
+            load_or_create_approval_usage_ledger(
+                args.approval_usage_ledger,
+                created_at=(
+                    args.promoted_at
+                    or plan["rotated_at"]
+                ),
+            )
+            if args.approval_usage_ledger
+            else None
+        )
 
     effective_required_approvals = max(
         policy_required_approvals,
@@ -1032,11 +1219,31 @@ def command_promote(args):
         )
     )
 
+    output_ledger_sha256 = None
+
     if policy_require_replay_protection:
         write_json(
             args.approval_usage_ledger,
             updated_usage_ledger,
         )
+
+        output_ledger_sha256 = (
+            approval_usage_ledger_fingerprint(
+                updated_usage_ledger
+            )
+        )
+
+    audit[
+        "approval_usage_ledger_integrity"
+    ] = {
+        "input": ledger_integrity,
+        "output_sha256": (
+            output_ledger_sha256
+        ),
+        "required": (
+            policy_require_ledger_integrity_pin
+        ),
+    }
 
     write_json(
         args.audit_output,
@@ -1064,6 +1271,12 @@ def command_promote(args):
         "Old manifest trust: "
         f"{audit['old_manifest_trust_basis']}"
     )
+    if output_ledger_sha256:
+        print(
+            "Approval usage ledger SHA-256: "
+            f"{output_ledger_sha256}"
+        )
+
     print(
         "Audit: "
         f"{args.audit_output}"

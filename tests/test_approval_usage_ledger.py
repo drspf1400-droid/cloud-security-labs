@@ -215,3 +215,139 @@ def test_naive_consumption_timestamp_is_rejected():
                 "2026-10-04T10:00:00"
             ),
         )
+
+
+def test_ledger_fingerprint_is_deterministic():
+    from modules.approval_usage_ledger import (
+        approval_usage_ledger_fingerprint,
+    )
+
+    ledger = build_ledger()
+
+    first = (
+        approval_usage_ledger_fingerprint(
+            ledger
+        )
+    )
+
+    reordered = {
+        "consumed_approvals": (
+            ledger[
+                "consumed_approvals"
+            ]
+        ),
+        "updated_at": (
+            ledger["updated_at"]
+        ),
+        "created_at": (
+            ledger["created_at"]
+        ),
+        "ledger_id": (
+            ledger["ledger_id"]
+        ),
+        "ledger_version": (
+            ledger["ledger_version"]
+        ),
+    }
+
+    second = (
+        approval_usage_ledger_fingerprint(
+            reordered
+        )
+    )
+
+    assert first == second
+    assert len(first) == 64
+
+
+def test_ledger_fingerprint_changes_after_consumption():
+    from modules.approval_usage_ledger import (
+        approval_usage_ledger_fingerprint,
+    )
+
+    ledger = build_ledger()
+
+    before = (
+        approval_usage_ledger_fingerprint(
+            ledger
+        )
+    )
+
+    updated = consume_approvals(
+        ledger,
+        [sample_approval()],
+        action="execute",
+        consumed_at=CONSUMED_AT,
+    )
+
+    after = (
+        approval_usage_ledger_fingerprint(
+            updated
+        )
+    )
+
+    assert before != after
+
+
+def test_ledger_integrity_accepts_matching_pin():
+    from modules.approval_usage_ledger import (
+        approval_usage_ledger_fingerprint,
+        verify_approval_usage_ledger_integrity,
+    )
+
+    ledger = build_ledger()
+
+    fingerprint = (
+        approval_usage_ledger_fingerprint(
+            ledger
+        )
+    )
+
+    result = (
+        verify_approval_usage_ledger_integrity(
+            ledger,
+            fingerprint,
+        )
+    )
+
+    assert result["valid"] is True
+
+    assert (
+        result["status"]
+        == "ledger_integrity_verified"
+    )
+
+
+def test_ledger_integrity_rejects_wrong_pin():
+    from modules.approval_usage_ledger import (
+        verify_approval_usage_ledger_integrity,
+    )
+
+    result = (
+        verify_approval_usage_ledger_integrity(
+            build_ledger(),
+            "0" * 64,
+        )
+    )
+
+    assert result["valid"] is False
+
+    assert (
+        result["status"]
+        == "ledger_integrity_mismatch"
+    )
+
+
+def test_ledger_integrity_rejects_invalid_pin():
+    from modules.approval_usage_ledger import (
+        ApprovalUsageLedgerError,
+        verify_approval_usage_ledger_integrity,
+    )
+
+    with pytest.raises(
+        ApprovalUsageLedgerError
+    ):
+        verify_approval_usage_ledger_integrity(
+            build_ledger(),
+            "not-a-sha256",
+        )

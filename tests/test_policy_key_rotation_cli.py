@@ -61,6 +61,102 @@ def run_cli(*args):
             "lab",
         ]
 
+    if (
+        args
+        and args[0] in {
+            "execute",
+            "promote",
+        }
+        and "--environment" in args
+        and args[
+            args.index("--environment") + 1
+        ] == "production"
+        and "--approval-usage-ledger" in args
+        and "--approval-usage-ledger-sha256"
+            not in args
+        and "--initialize-approval-usage-ledger"
+            not in args
+    ):
+        ledger_path = Path(
+            args[
+                args.index(
+                    "--approval-usage-ledger"
+                ) + 1
+            ]
+        )
+
+        if ledger_path.exists():
+            from modules.approval_usage_ledger import (
+                approval_usage_ledger_fingerprint,
+            )
+
+            ledger = json.loads(
+                ledger_path.read_text(
+                    encoding="utf-8"
+                )
+            )
+
+            args.extend(
+                [
+                    "--approval-usage-ledger-sha256",
+                    approval_usage_ledger_fingerprint(
+                        ledger
+                    ),
+                ]
+            )
+        else:
+            args.append(
+                "--initialize-approval-usage-ledger"
+            )
+
+    if (
+        args
+        and args[0] in {
+            "execute",
+            "promote",
+        }
+        and "--environment" in args
+        and args[
+            args.index("--environment") + 1
+        ] == "production"
+        and "--approval-usage-ledger" in args
+        and "--approval-usage-ledger-sha256"
+            not in args
+        and "--initialize-approval-usage-ledger"
+            not in args
+    ):
+        ledger_path = Path(
+            args[
+                args.index(
+                    "--approval-usage-ledger"
+                ) + 1
+            ]
+        )
+
+        if ledger_path.exists():
+            from modules.approval_usage_ledger import (
+                approval_usage_ledger_fingerprint,
+            )
+
+            ledger = json.loads(
+                ledger_path.read_text(
+                    encoding="utf-8"
+                )
+            )
+
+            args.extend(
+                [
+                    "--approval-usage-ledger-sha256",
+                    approval_usage_ledger_fingerprint(
+                        ledger
+                    ),
+                ]
+            )
+        else:
+            args.append(
+                "--initialize-approval-usage-ledger"
+            )
+
     return subprocess.run(
         [
             sys.executable,
@@ -2599,4 +2695,160 @@ def test_production_promotion_blocks_replayed_approvals(
     assert (
         "approval_replay_not_satisfied"
         in second.stderr
+    )
+
+
+def test_production_execute_initializes_and_reports_ledger_pin(
+    tmp_path,
+):
+    result, key_path, plan_path, _ = (
+        create_plan(tmp_path)
+    )
+
+    assert result.returncode == 0
+
+    (
+        approval_paths,
+        approver_registry,
+    ) = create_cli_production_freshness_approvals(
+        tmp_path,
+        plan_path,
+        [
+            "2026-10-04T09:10:00+00:00",
+            "2026-10-04T09:20:00+00:00",
+        ],
+        approval_scope="execute",
+    )
+
+    ledger_path = (
+        tmp_path / "day38-ledger.json"
+    )
+
+    execute = run_cli(
+        "execute",
+        "--environment",
+        "production",
+        "--plan",
+        plan_path,
+        "--manifest",
+        MANIFEST,
+        "--registry",
+        REGISTRY,
+        "--new-private-key",
+        key_path,
+        "--approval",
+        approval_paths[0],
+        "--approval",
+        approval_paths[1],
+        "--approver-registry",
+        approver_registry,
+        "--approval-usage-ledger",
+        ledger_path,
+        "--initialize-approval-usage-ledger",
+        "--output-dir",
+        tmp_path / "day38-candidate",
+    )
+
+    assert execute.returncode == 0, (
+        execute.stderr
+    )
+
+    assert (
+        "Approval usage ledger SHA-256:"
+        in execute.stdout
+    )
+
+    assert ledger_path.exists()
+
+
+def test_production_execute_rejects_tampered_ledger_pin(
+    tmp_path,
+):
+    from modules.approval_usage_ledger import (
+        approval_usage_ledger_fingerprint,
+        create_approval_usage_ledger,
+    )
+
+    result, key_path, plan_path, _ = (
+        create_plan(tmp_path)
+    )
+
+    assert result.returncode == 0
+
+    (
+        approval_paths,
+        approver_registry,
+    ) = create_cli_production_freshness_approvals(
+        tmp_path,
+        plan_path,
+        [
+            "2026-10-04T09:10:00+00:00",
+            "2026-10-04T09:20:00+00:00",
+        ],
+        approval_scope="execute",
+    )
+
+    ledger_path = (
+        tmp_path
+        / "tampered-day38-ledger.json"
+    )
+
+    ledger = create_approval_usage_ledger(
+        created_at=(
+            "2026-10-04T09:00:00+00:00"
+        ),
+        ledger_id=(
+            "DAY38-TAMPER-LEDGER-001"
+        ),
+    )
+
+    trusted_sha = (
+        approval_usage_ledger_fingerprint(
+            ledger
+        )
+    )
+
+    ledger["updated_at"] = (
+        "2026-10-04T09:01:00+00:00"
+    )
+
+    ledger_path.write_text(
+        json.dumps(
+            ledger,
+            indent=2,
+        ) + "\n",
+        encoding="utf-8",
+    )
+
+    execute = run_cli(
+        "execute",
+        "--environment",
+        "production",
+        "--plan",
+        plan_path,
+        "--manifest",
+        MANIFEST,
+        "--registry",
+        REGISTRY,
+        "--new-private-key",
+        key_path,
+        "--approval",
+        approval_paths[0],
+        "--approval",
+        approval_paths[1],
+        "--approver-registry",
+        approver_registry,
+        "--approval-usage-ledger",
+        ledger_path,
+        "--approval-usage-ledger-sha256",
+        trusted_sha,
+        "--output-dir",
+        tmp_path / "tampered-candidate",
+    )
+
+    assert execute.returncode == 1
+
+    assert (
+        "integrity mismatch"
+        in execute.stderr.lower()
     )

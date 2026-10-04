@@ -25,6 +25,7 @@
     "require_distinct_role_holders": true,
     "max_approval_age_seconds": 3600,
     "require_action_scope": true,
-    "require_replay_protection": true
+    "require_replay_protection": true,
+    "require_ledger_integrity_pin": true
   }
 }
