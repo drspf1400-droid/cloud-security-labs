@@ -108,7 +108,8 @@ def test_environment_mismatch_is_rejected(
             "max_blocked_executions": 0
         },
         "rotation_approval": {
-            "required_approvals": 1
+            "required_approvals": 1,
+            "required_roles": []
         }
     }
 
@@ -141,7 +142,8 @@ def test_negative_limit_is_rejected():
             "max_blocked_executions": 0
         },
         "rotation_approval": {
-            "required_approvals": 1
+            "required_approvals": 1,
+            "required_roles": []
         }
     }
 
@@ -222,7 +224,60 @@ def test_invalid_rotation_approval_quorum_is_rejected():
             "max_blocked_executions": 0
         },
         "rotation_approval": {
-            "required_approvals": 0
+            "required_approvals": 0,
+            "required_roles": []
+        }
+    }
+
+    with pytest.raises(
+        SecurityGatePolicyError
+    ):
+        validate_security_gate_policy(
+            policy
+        )
+
+
+def test_production_requires_distinct_security_roles():
+    policy = load_security_gate_policy(
+        "production"
+    )
+
+    assert (
+        policy["rotation_approval"][
+            "required_approvals"
+        ]
+        == 2
+    )
+
+    assert (
+        policy["rotation_approval"][
+            "required_roles"
+        ]
+        == [
+            "security-admin",
+            "platform-owner",
+        ]
+    )
+
+
+def test_duplicate_required_policy_roles_are_rejected():
+    policy = {
+        "policy_version": "1.0",
+        "policy_name": "bad-role-policy",
+        "environment": "production",
+        "gate": {
+            "fail_on_assurance_states": [],
+            "fail_on_trust_decisions": [],
+            "max_critical_findings": 0,
+            "max_failed_executions": 0,
+            "max_blocked_executions": 0
+        },
+        "rotation_approval": {
+            "required_approvals": 2,
+            "required_roles": [
+                "security-admin",
+                "security-admin"
+            ]
         }
     }
 

@@ -13,7 +13,10 @@
       "status": "active",
       "registered_at": "2026-10-03T14:00:00+00:00",
       "revoked_at": null,
-      "revocation_reason": null
+      "revocation_reason": null,
+      "roles": [
+        "security-admin"
+      ]
     },
     {
       "approver_id": "platform-owner",
@@ -24,7 +27,10 @@
       "status": "active",
       "registered_at": "2026-10-03T14:05:00+00:00",
       "revoked_at": null,
-      "revocation_reason": null
+      "revocation_reason": null,
+      "roles": [
+        "platform-owner"
+      ]
     }
   ]
 }

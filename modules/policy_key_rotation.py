@@ -193,6 +193,7 @@ def execute_policy_key_rotation(
     approvals=None,
     approver_registry,
     required_approvals=1,
+    required_roles=None,
 ):
     """
     Execute an approved rotation plan.
@@ -224,6 +225,9 @@ def execute_policy_key_rotation(
             approver_registry,
             required_approvals=(
                 required_approvals
+            ),
+            required_roles=(
+                required_roles
             ),
         )
     )
