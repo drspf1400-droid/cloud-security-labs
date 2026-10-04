@@ -7,6 +7,7 @@ from modules.approver_trust_registry import (
 )
 
 from modules.rotation_approval import (
+    APPROVAL_SCOPES,
     parse_timestamp,
 )
 
@@ -25,6 +26,7 @@ def verify_rotation_approval_quorum(
     require_distinct_role_holders=False,
     max_approval_age_seconds=None,
     reference_time=None,
+    required_scope=None,
 ):
     """
     Verify independently signed approvals.
@@ -99,6 +101,17 @@ def verify_rotation_approval_quorum(
             "must be a boolean"
         )
 
+    if (
+        required_scope is not None
+        and required_scope not in APPROVAL_SCOPES
+    ):
+        raise ApprovalQuorumError(
+            "required_scope must be one of: "
+            + ", ".join(
+                sorted(APPROVAL_SCOPES)
+            )
+        )
+
     if max_approval_age_seconds is not None:
         if (
             not isinstance(
@@ -146,6 +159,7 @@ def verify_rotation_approval_quorum(
 
     expired_approval_count = 0
     future_approval_count = 0
+    scope_mismatch_count = 0
 
     for index, approval in enumerate(
         approvals
@@ -155,6 +169,9 @@ def verify_rotation_approval_quorum(
                 plan,
                 approval,
                 approver_registry,
+                required_scope=(
+                    required_scope
+                ),
             )
         )
 
@@ -167,6 +184,12 @@ def verify_rotation_approval_quorum(
         if not verification.get(
             "valid"
         ):
+            if (
+                verification.get("status")
+                == "approval_scope_mismatch"
+            ):
+                scope_mismatch_count += 1
+
             rejected.append(
                 item
             )
@@ -399,6 +422,14 @@ def verify_rotation_approval_quorum(
 
     elif (
         not approval_count_met
+        and scope_mismatch_count
+    ):
+        status = (
+            "approval_scope_not_satisfied"
+        )
+
+    elif (
+        not approval_count_met
         and (
             expired_approval_count
             or future_approval_count
@@ -449,6 +480,12 @@ def verify_rotation_approval_quorum(
         ),
         "distinct_role_unassigned_roles": (
             distinct_role_unassigned_roles
+        ),
+        "required_scope": (
+            required_scope
+        ),
+        "scope_mismatch_count": (
+            scope_mismatch_count
         ),
         "max_approval_age_seconds": (
             max_approval_age_seconds

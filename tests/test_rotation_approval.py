@@ -239,3 +239,83 @@ def test_approval_initiator_must_match_plan():
                 "2026-10-04T09:30:00+00:00"
             ),
         )
+
+
+def test_execute_scoped_approval_verifies():
+    key = Ed25519PrivateKey.generate()
+
+    approval = sign_rotation_approval(
+        sample_plan(),
+        key,
+        initiated_by="security-operator",
+        approved_by="security-admin",
+        approved_at=(
+            "2026-10-04T09:30:00+00:00"
+        ),
+        approval_scope="execute",
+    )
+
+    result = verify_rotation_approval(
+        sample_plan(),
+        approval,
+        trusted_public_key=(
+            key.public_key()
+        ),
+        required_scope="execute",
+    )
+
+    assert result["valid"] is True
+
+    assert (
+        result["approval_scope"]
+        == "execute"
+    )
+
+
+def test_wrong_approval_scope_is_rejected():
+    key = Ed25519PrivateKey.generate()
+
+    approval = sign_rotation_approval(
+        sample_plan(),
+        key,
+        initiated_by="security-operator",
+        approved_by="security-admin",
+        approved_at=(
+            "2026-10-04T09:30:00+00:00"
+        ),
+        approval_scope="promote",
+    )
+
+    result = verify_rotation_approval(
+        sample_plan(),
+        approval,
+        trusted_public_key=(
+            key.public_key()
+        ),
+        required_scope="execute",
+    )
+
+    assert result["valid"] is False
+
+    assert (
+        result["status"]
+        == "approval_scope_mismatch"
+    )
+
+
+def test_invalid_approval_scope_is_rejected_at_signing():
+    key = Ed25519PrivateKey.generate()
+
+    with pytest.raises(
+        RotationApprovalError
+    ):
+        sign_rotation_approval(
+            sample_plan(),
+            key,
+            initiated_by="security-operator",
+            approved_by="security-admin",
+            approved_at=(
+                "2026-10-04T09:30:00+00:00"
+            ),
+            approval_scope="delete-everything",
+        )

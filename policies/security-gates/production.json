@@ -23,6 +23,7 @@
       "platform-owner"
     ],
     "require_distinct_role_holders": true,
-    "max_approval_age_seconds": 3600
+    "max_approval_age_seconds": 3600,
+    "require_action_scope": true
   }
 }

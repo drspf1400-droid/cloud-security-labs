@@ -262,6 +262,7 @@ def promote_policy_rotation(
     required_roles=None,
     require_distinct_role_holders=False,
     max_approval_age_seconds=None,
+    required_scope=None,
     current_manifest_path,
     current_registry_path,
     candidate_manifest_path,
@@ -303,6 +304,9 @@ def promote_policy_rotation(
                 if max_approval_age_seconds
                 is not None
                 else None
+            ),
+            required_scope=(
+                required_scope
             ),
         )
     )
@@ -495,6 +499,16 @@ def promote_policy_rotation(
             "future_approval_count": (
                 quorum_verification[
                     "future_approval_count"
+                ]
+            ),
+            "required_scope": (
+                quorum_verification[
+                    "required_scope"
+                ]
+            ),
+            "scope_mismatch_count": (
+                quorum_verification[
+                    "scope_mismatch_count"
                 ]
             ),
             "valid_approval_count": (
