@@ -22,6 +22,7 @@
       "security-admin",
       "platform-owner"
     ],
-    "require_distinct_role_holders": true
+    "require_distinct_role_holders": true,
+    "max_approval_age_seconds": 3600
   }
 }

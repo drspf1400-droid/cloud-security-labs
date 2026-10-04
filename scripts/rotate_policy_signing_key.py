@@ -593,6 +593,12 @@ def command_execute(args):
         ]["require_distinct_role_holders"]
     )
 
+    policy_max_approval_age_seconds = (
+        environment_policy[
+            "rotation_approval"
+        ]["max_approval_age_seconds"]
+    )
+
     effective_required_approvals = max(
         policy_required_approvals,
         args.required_approvals,
@@ -627,6 +633,9 @@ def command_execute(args):
         ),
         require_distinct_role_holders=(
             policy_require_distinct_role_holders
+        ),
+        max_approval_age_seconds=(
+            policy_max_approval_age_seconds
         ),
     )
 
@@ -700,6 +709,9 @@ def command_execute(args):
             ),
             "require_distinct_role_holders": (
                 policy_require_distinct_role_holders
+            ),
+            "max_approval_age_seconds": (
+                policy_max_approval_age_seconds
             ),
             "effective_required_approvals": (
                 effective_required_approvals
@@ -789,6 +801,12 @@ def command_promote(args):
         ]["require_distinct_role_holders"]
     )
 
+    policy_max_approval_age_seconds = (
+        environment_policy[
+            "rotation_approval"
+        ]["max_approval_age_seconds"]
+    )
+
     effective_required_approvals = max(
         policy_required_approvals,
         args.required_approvals,
@@ -808,6 +826,9 @@ def command_promote(args):
         ),
         require_distinct_role_holders=(
             policy_require_distinct_role_holders
+        ),
+        max_approval_age_seconds=(
+            policy_max_approval_age_seconds
         ),
         current_manifest_path=(
             args.current_manifest

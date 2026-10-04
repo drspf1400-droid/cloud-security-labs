@@ -31,6 +31,7 @@ REQUIRED_ROTATION_APPROVAL_FIELDS = {
     "required_approvals",
     "required_roles",
     "require_distinct_role_holders",
+    "max_approval_age_seconds",
 }
 
 
@@ -86,6 +87,24 @@ def _validate_positive_integer(
         raise SecurityGatePolicyError(
             f"{field_name} must be a "
             "positive integer"
+        )
+
+
+def _validate_optional_positive_integer(
+    value,
+    field_name,
+):
+    if value is None:
+        return
+
+    if (
+        not isinstance(value, int)
+        or isinstance(value, bool)
+        or value < 1
+    ):
+        raise SecurityGatePolicyError(
+            f"{field_name} must be a "
+            "positive integer or null"
         )
 
 
@@ -246,6 +265,14 @@ def validate_security_gate_policy(
             "require_distinct_role_holders "
             "must be a boolean"
         )
+
+    _validate_optional_positive_integer(
+        rotation_approval[
+            "max_approval_age_seconds"
+        ],
+        "rotation_approval."
+        "max_approval_age_seconds",
+    )
 
     return True
 
