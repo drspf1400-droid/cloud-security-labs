@@ -29,6 +29,7 @@ REQUIRED_GATE_FIELDS = {
 
 REQUIRED_ROTATION_APPROVAL_FIELDS = {
     "required_approvals",
+    "required_roles",
 }
 
 
@@ -201,6 +202,37 @@ def validate_security_gate_policy(
         "rotation_approval."
         "required_approvals",
     )
+
+    _validate_string_list(
+        rotation_approval[
+            "required_roles"
+        ],
+        "rotation_approval."
+        "required_roles",
+    )
+
+    required_roles = (
+        rotation_approval[
+            "required_roles"
+        ]
+    )
+
+    if len(set(required_roles)) != len(
+        required_roles
+    ):
+        raise SecurityGatePolicyError(
+            "rotation_approval.required_roles "
+            "must be unique"
+        )
+
+    if any(
+        not role
+        for role in required_roles
+    ):
+        raise SecurityGatePolicyError(
+            "rotation_approval.required_roles "
+            "must contain non-empty strings"
+        )
 
     return True
 

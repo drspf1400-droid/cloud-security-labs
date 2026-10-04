@@ -94,6 +94,7 @@ def register_approver(
     key_id,
     public_key_b64,
     registered_at,
+    roles=None,
 ):
     if not approver_id:
         raise ApproverTrustRegistryError(
@@ -108,6 +109,32 @@ def register_approver(
     parse_timestamp(
         registered_at
     )
+
+    if roles is None:
+        roles = []
+
+    if not isinstance(
+        roles,
+        list,
+    ):
+        raise ApproverTrustRegistryError(
+            "roles must be a list"
+        )
+
+    if not all(
+        isinstance(role, str)
+        and role
+        for role in roles
+    ):
+        raise ApproverTrustRegistryError(
+            "roles must contain "
+            "non-empty strings"
+        )
+
+    if len(set(roles)) != len(roles):
+        raise ApproverTrustRegistryError(
+            "roles must be unique"
+        )
 
     source = deepcopy(
         registry
@@ -153,6 +180,7 @@ def register_approver(
                 fingerprint
             ),
             "status": "active",
+            "roles": list(roles),
             "registered_at": (
                 registered_at
             ),
@@ -456,6 +484,13 @@ def verify_rotation_approval_with_registry(
 
     result["approver_key_id"] = (
         entry["key_id"]
+    )
+
+    result["approver_roles"] = list(
+        entry.get(
+            "roles",
+            [],
+        )
     )
 
     return result

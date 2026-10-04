@@ -581,6 +581,12 @@ def command_execute(args):
         ]["required_approvals"]
     )
 
+    policy_required_roles = (
+        environment_policy[
+            "rotation_approval"
+        ]["required_roles"]
+    )
+
     effective_required_approvals = max(
         policy_required_approvals,
         args.required_approvals,
@@ -609,6 +615,9 @@ def command_execute(args):
         ),
         required_approvals=(
             effective_required_approvals
+        ),
+        required_roles=(
+            policy_required_roles
         ),
     )
 
@@ -676,6 +685,9 @@ def command_execute(args):
             ),
             "policy_required_approvals": (
                 policy_required_approvals
+            ),
+            "policy_required_roles": list(
+                policy_required_roles
             ),
             "effective_required_approvals": (
                 effective_required_approvals
@@ -753,6 +765,12 @@ def command_promote(args):
         ]["required_approvals"]
     )
 
+    policy_required_roles = (
+        environment_policy[
+            "rotation_approval"
+        ]["required_roles"]
+    )
+
     effective_required_approvals = max(
         policy_required_approvals,
         args.required_approvals,
@@ -766,6 +784,9 @@ def command_promote(args):
         ),
         required_approvals=(
             effective_required_approvals
+        ),
+        required_roles=(
+            policy_required_roles
         ),
         current_manifest_path=(
             args.current_manifest

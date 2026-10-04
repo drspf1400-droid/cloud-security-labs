@@ -183,6 +183,138 @@ def create_cli_signed_approval(
     )
 
 
+def create_cli_role_mismatch_approvals(
+    tmp_path,
+    plan_path,
+):
+    from cryptography.hazmat.primitives.serialization import (
+        load_pem_private_key,
+    )
+
+    from modules.approver_trust_registry import (
+        create_approver_registry,
+        register_approver,
+    )
+    from modules.rotation_approval import (
+        public_key_to_base64,
+    )
+
+    approvers = [
+        (
+            "security-admin",
+            ["security-admin"],
+            "role-security",
+        ),
+        (
+            "risk-owner",
+            ["risk-owner"],
+            "role-risk",
+        ),
+    ]
+
+    registry = create_approver_registry(
+        created_at=(
+            "2026-10-04T08:00:00+00:00"
+        ),
+        registry_id=(
+            "ROLE-MISMATCH-APPROVER-REGISTRY-001"
+        ),
+    )
+
+    approval_paths = []
+
+    for index, (
+        approver_id,
+        roles,
+        stem,
+    ) in enumerate(
+        approvers,
+        start=1,
+    ):
+        private_key_path = (
+            tmp_path
+            / f"{stem}-private.pem"
+        )
+
+        approval_path = (
+            tmp_path
+            / f"{stem}-approval.json"
+        )
+
+        create_private_key(
+            private_key_path
+        )
+
+        private_key = (
+            load_pem_private_key(
+                private_key_path.read_bytes(),
+                password=None,
+            )
+        )
+
+        registry = register_approver(
+            registry,
+            approver_id=approver_id,
+            key_id=(
+                f"role-approver-key-{index:03d}"
+            ),
+            public_key_b64=(
+                public_key_to_base64(
+                    private_key.public_key()
+                )
+            ),
+            registered_at=(
+                "2026-10-04T08:30:00+00:00"
+            ),
+            roles=roles,
+        )
+
+        approval = run_cli(
+            "approve",
+            "--plan",
+            plan_path,
+            "--approver-private-key",
+            private_key_path,
+            "--approved-by",
+            approver_id,
+            "--approved-at",
+            "2026-10-04T09:30:00+00:00",
+            "--approval-id",
+            (
+                f"ROLE-MISMATCH-APPROVAL-{index:03d}"
+            ),
+            "--output",
+            approval_path,
+        )
+
+        assert approval.returncode == 0, (
+            approval.stderr
+        )
+
+        approval_paths.append(
+            approval_path
+        )
+
+    registry_path = (
+        tmp_path
+        / "role-mismatch-approver-registry.json"
+    )
+
+    registry_path.write_text(
+        json.dumps(
+            registry,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    return (
+        approval_paths,
+        registry_path,
+    )
+
+
 def create_plan(tmp_path):
     key_path = (
         tmp_path
@@ -1448,5 +1580,54 @@ def test_production_quorum_policy_cannot_be_lowered_by_cli(
 
     assert (
         "quorum_not_satisfied"
+        in execute.stderr
+    )
+
+
+def test_production_rejects_two_valid_approvals_with_wrong_roles(
+    tmp_path,
+):
+    result, key_path, plan_path, _ = (
+        create_plan(tmp_path)
+    )
+
+    assert result.returncode == 0
+
+    (
+        approval_paths,
+        approver_registry,
+    ) = create_cli_role_mismatch_approvals(
+        tmp_path,
+        plan_path,
+    )
+
+    execute = run_cli(
+        "execute",
+        "--environment",
+        "production",
+        "--plan",
+        plan_path,
+        "--manifest",
+        MANIFEST,
+        "--registry",
+        REGISTRY,
+        "--new-private-key",
+        key_path,
+        "--approval",
+        approval_paths[0],
+        "--approval",
+        approval_paths[1],
+        "--approver-registry",
+        approver_registry,
+        "--required-approvals",
+        "1",
+        "--output-dir",
+        tmp_path / "candidate-role-mismatch",
+    )
+
+    assert execute.returncode == 1
+
+    assert (
+        "required_roles_not_satisfied"
         in execute.stderr
     )

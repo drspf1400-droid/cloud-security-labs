@@ -259,6 +259,7 @@ def promote_policy_rotation(
     approvals=None,
     approver_registry,
     required_approvals=1,
+    required_roles=None,
     current_manifest_path,
     current_registry_path,
     candidate_manifest_path,
@@ -282,6 +283,9 @@ def promote_policy_rotation(
             approver_registry,
             required_approvals=(
                 required_approvals
+            ),
+            required_roles=(
+                required_roles
             ),
         )
     )
@@ -422,6 +426,21 @@ def promote_policy_rotation(
             "required_approvals": (
                 quorum_verification[
                     "required_approvals"
+                ]
+            ),
+            "required_roles": list(
+                quorum_verification[
+                    "required_roles"
+                ]
+            ),
+            "satisfied_roles": list(
+                quorum_verification[
+                    "satisfied_roles"
+                ]
+            ),
+            "missing_roles": list(
+                quorum_verification[
+                    "missing_roles"
                 ]
             ),
             "valid_approval_count": (

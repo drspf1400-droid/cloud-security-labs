@@ -373,3 +373,54 @@ def test_registry_fingerprint_is_stable():
             clone
         )
     )
+
+
+def test_registered_approver_roles_are_returned():
+    key = Ed25519PrivateKey.generate()
+
+    registry = create_approver_registry(
+        created_at=CREATED_AT,
+    )
+
+    registry = register_approver(
+        registry,
+        approver_id="security-admin",
+        key_id="role-key-001",
+        public_key_b64=(
+            public_key_to_base64(
+                key.public_key()
+            )
+        ),
+        registered_at=REGISTERED_AT,
+        roles=[
+            "security-admin",
+            "incident-approver",
+        ],
+    )
+
+    plan = sample_plan()
+
+    approval = sign_rotation_approval(
+        plan,
+        key,
+        initiated_by=(
+            plan["initiated_by"]
+        ),
+        approved_by="security-admin",
+        approved_at=APPROVED_AT,
+    )
+
+    result = (
+        verify_rotation_approval_with_registry(
+            plan,
+            approval,
+            registry,
+        )
+    )
+
+    assert result["valid"] is True
+
+    assert result["approver_roles"] == [
+        "security-admin",
+        "incident-approver",
+    ]

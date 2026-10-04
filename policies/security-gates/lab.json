@@ -13,6 +13,7 @@
     "max_blocked_executions": 10
   },
   "rotation_approval": {
-    "required_approvals": 1
+    "required_approvals": 1,
+    "required_roles": []
   }
 }

@@ -96,6 +96,9 @@ def build_registry():
                 )
             ),
             registered_at=REGISTERED_AT,
+            roles=[
+                approver_id
+            ],
         )
 
     return registry, keys
@@ -480,4 +483,156 @@ def test_approvals_must_be_list():
             {},
             registry,
             required_approvals=2,
+        )
+
+
+def test_required_roles_are_satisfied():
+    registry, keys = build_registry()
+
+    plan = sample_plan()
+
+    approvals = [
+        make_approval(
+            plan,
+            keys["security-admin"],
+            "security-admin",
+        ),
+        make_approval(
+            plan,
+            keys["platform-owner"],
+            "platform-owner",
+        ),
+    ]
+
+    result = (
+        verify_rotation_approval_quorum(
+            plan,
+            approvals,
+            registry,
+            required_approvals=2,
+            required_roles=[
+                "security-admin",
+                "platform-owner",
+            ],
+        )
+    )
+
+    assert result["valid"] is True
+
+    assert result["missing_roles"] == []
+
+    assert set(
+        result["satisfied_roles"]
+    ) >= {
+        "security-admin",
+        "platform-owner",
+    }
+
+
+def test_required_role_missing_rejects_quorum():
+    registry, keys = build_registry()
+
+    plan = sample_plan()
+
+    approvals = [
+        make_approval(
+            plan,
+            keys["security-admin"],
+            "security-admin",
+        ),
+        make_approval(
+            plan,
+            keys["risk-owner"],
+            "risk-owner",
+        ),
+    ]
+
+    result = (
+        verify_rotation_approval_quorum(
+            plan,
+            approvals,
+            registry,
+            required_approvals=2,
+            required_roles=[
+                "security-admin",
+                "platform-owner",
+            ],
+        )
+    )
+
+    assert result["valid"] is False
+
+    assert (
+        result["status"]
+        == "required_roles_not_satisfied"
+    )
+
+    assert result["missing_roles"] == [
+        "platform-owner"
+    ]
+
+
+def test_required_roles_do_not_replace_approval_count():
+    registry, keys = build_registry()
+
+    plan = sample_plan()
+
+    approvals = [
+        make_approval(
+            plan,
+            keys["security-admin"],
+            "security-admin",
+        )
+    ]
+
+    result = (
+        verify_rotation_approval_quorum(
+            plan,
+            approvals,
+            registry,
+            required_approvals=2,
+            required_roles=[
+                "security-admin",
+            ],
+        )
+    )
+
+    assert result["valid"] is False
+
+    assert (
+        result["status"]
+        == "quorum_not_satisfied"
+    )
+
+
+def test_required_roles_must_be_list():
+    registry, _ = build_registry()
+
+    with pytest.raises(
+        ApprovalQuorumError
+    ):
+        verify_rotation_approval_quorum(
+            sample_plan(),
+            [],
+            registry,
+            required_approvals=1,
+            required_roles="security-admin",
+        )
+
+
+def test_duplicate_required_roles_are_rejected():
+    registry, _ = build_registry()
+
+    with pytest.raises(
+        ApprovalQuorumError
+    ):
+        verify_rotation_approval_quorum(
+            sample_plan(),
+            [],
+            registry,
+            required_approvals=1,
+            required_roles=[
+                "security-admin",
+                "security-admin",
+            ],
         )
