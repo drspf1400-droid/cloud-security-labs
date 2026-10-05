@@ -13,3 +13,6 @@ checker-output.txt
 ci-report/
 report/generated/
 report/day23-demo/
+
+# Local project archives
+project.tar.gz
