@@ -1,0 +1,80 @@
+# 5-Minute Portfolio Demo
+
+## Goal
+
+Demonstrate the Human-Controlled Security Assurance MVP in approximately five minutes.
+
+## 0:00-0:45 — Explain the Problem
+
+Security scanners generate findings, but a production security workflow needs more than detection.
+
+The workflow must answer:
+- Which findings matter most?
+- Is remediation allowed in this environment?
+- Has a human approved the action?
+- What exactly will be changed?
+- Did the remediation work?
+- Can the execution be audited later?
+- Should the security gate pass or fail?
+
+## 0:45-1:30 — Show the Architecture
+
+Open README.md and show the Security Assurance workflow:
+
+Scanner / Structured Findings
+→ Context-Aware Prioritization
+→ Policy Guardrails
+→ Human Approval
+→ Controlled Remediation
+→ Verification
+→ Execution Evidence
+→ Security Assurance Report
+→ Security Gate
+
+Explain that remediation is disabled by default and production remains dry-run for the current SSH remediation.
+
+## 1:30-3:30 — Run the Demo
+
+Run:
+
+    make demo
+
+Point out:
+- PermitRootLogin starts as yes in an isolated fixture
+- The finding is already in an approved state
+- Policy allows controlled execution in the lab environment
+- The remediation changes PermitRootLogin to no
+- Verification confirms the change
+- Execution evidence is generated
+- A Security Assurance report is created
+- The lab security gate returns pass
+
+## 3:30-4:15 — Show the Evidence
+
+Open the generated output directory:
+
+    /tmp/cloud-security-labs-mvp-demo/output
+
+Highlight:
+- 04_execution_assessment.json
+- execution_evidence.json
+- security_assurance_report.html
+- security_gate_result.json
+
+Explain that the goal is not just to change configuration, but to create verifiable evidence of what happened.
+
+## 4:15-4:45 — Show Engineering Quality
+
+Run:
+
+    make test
+
+Explain that the current release candidate has 333 passing tests and GitHub Actions checks for the security pipeline, Docker build, and Security Assurance Gate.
+
+## 4:45-5:00 — Close
+
+Closing statement:
+
+The main idea of this project is controlled security automation: automate repetitive security work while keeping policy, human approval, verification, and evidence explicit.
+diff
+--check
