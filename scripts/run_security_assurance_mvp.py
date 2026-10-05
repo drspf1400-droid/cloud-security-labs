@@ -31,6 +31,10 @@ from modules.execution_plan import (
     attach_execution_plan,
 )
 
+from modules.execution_engine import (
+    execute_assessment_plan,
+)
+
 from modules.security_assurance_report import (
     build_security_assurance_report,
     write_security_assurance_report,
@@ -167,6 +171,32 @@ def parse_args():
     )
 
     parser.add_argument(
+        "--execute-remediation",
+        action="store_true",
+        help=(
+            "Explicitly enable controlled "
+            "remediation execution. Disabled "
+            "by default."
+        ),
+    )
+
+    parser.add_argument(
+        "--actor",
+        help=(
+            "Identity responsible for the "
+            "remediation execution"
+        ),
+    )
+
+    parser.add_argument(
+        "--execution-context",
+        help=(
+            "Optional JSON file mapping finding "
+            "IDs to execution context"
+        ),
+    )
+
+    parser.add_argument(
         "--enforce-gate",
         action="store_true",
         help=(
@@ -225,6 +255,54 @@ def main():
             )
         )
 
+        execution_result = None
+        execution_context = {}
+
+        if args.execute_remediation:
+            if not args.actor:
+                raise ValueError(
+                    "--actor is required when "
+                    "--execute-remediation is enabled"
+                )
+
+            if args.execution_context:
+                execution_context = load_json(
+                    args.execution_context
+                )
+
+                if not isinstance(
+                    execution_context,
+                    dict,
+                ):
+                    raise ValueError(
+                        "Execution context must be "
+                        "a JSON object"
+                    )
+
+            execution_result = (
+                execute_assessment_plan(
+                    planned_assessment,
+                    actor=args.actor,
+                    environment=(
+                        args.environment
+                    ),
+                    execution_context=(
+                        execution_context
+                    ),
+                )
+            )
+
+            effective_assessment = (
+                execution_result[
+                    "assessment"
+                ]
+            )
+
+        else:
+            effective_assessment = (
+                planned_assessment
+            )
+
         trust_report = None
 
         if args.trust_report:
@@ -234,7 +312,7 @@ def main():
 
         report = (
             build_security_assurance_report(
-                planned_assessment,
+                effective_assessment,
                 trust_report,
             )
         )
@@ -305,6 +383,16 @@ def main():
             / "03_execution_plan_assessment.json"
         )
 
+        execution_path = (
+            output_dir
+            / "04_execution_assessment.json"
+        )
+
+        evidence_path = (
+            output_dir
+            / "execution_evidence.json"
+        )
+
         report_json_path = (
             output_dir
             / "security_assurance_report.json"
@@ -339,6 +427,19 @@ def main():
             plan_path,
             planned_assessment,
         )
+
+        if execution_result is not None:
+            write_json(
+                execution_path,
+                effective_assessment,
+            )
+
+            write_json(
+                evidence_path,
+                execution_result[
+                    "evidence_manifest"
+                ],
+            )
 
         write_security_assurance_report(
             report,
@@ -386,7 +487,10 @@ def main():
                     "completed"
                 ),
                 "remediation_execution": (
-                    "not_executed"
+                    "completed"
+                    if execution_result
+                    is not None
+                    else "not_executed"
                 ),
                 "assurance_report": (
                     "completed"
@@ -412,6 +516,22 @@ def main():
                     str(
                         plan_path
                     )
+                ),
+                "execution_assessment": (
+                    str(
+                        execution_path
+                    )
+                    if execution_result
+                    is not None
+                    else None
+                ),
+                "execution_evidence": (
+                    str(
+                        evidence_path
+                    )
+                    if execution_result
+                    is not None
+                    else None
                 ),
                 "assurance_json": (
                     str(
@@ -462,6 +582,20 @@ def main():
         "Findings: "
         f"{len(planned_assessment.get('findings', []))}"
     )
+
+    if execution_result is None:
+        print(
+            "Remediation execution: DISABLED"
+        )
+    else:
+        print(
+            "Remediation execution: COMPLETED"
+        )
+
+        print(
+            "Execution summary: "
+            f"{execution_result['summary']}"
+        )
 
     print(
         "Security gate: "
