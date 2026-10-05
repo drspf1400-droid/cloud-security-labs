@@ -67,3 +67,14 @@ For example:
 
 ```text
 0.0.0.0:8080
+
+## Security Assurance MVP
+
+This project includes an end-to-end, human-controlled Security Assurance MVP.
+
+Run the safe local demo:
+
+    ./scripts/demo_security_assurance_mvp.sh
+
+See: docs/security-assurance-mvp.md
+
