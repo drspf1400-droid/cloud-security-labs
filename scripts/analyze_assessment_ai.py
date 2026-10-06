@@ -3,6 +3,7 @@
 import argparse
 import json
 import sys
+from functools import partial
 from pathlib import Path
 
 
@@ -18,7 +19,15 @@ from modules.ai_analysis import (
 
 from modules.ai_providers import (
     deterministic_mock_analyzer,
+    ollama_json_analyzer,
 )
+
+
+DEFAULT_OLLAMA_ENDPOINT = (
+    "http://127.0.0.1:11434/api/chat"
+)
+
+DEFAULT_OLLAMA_MODEL = "qwen2.5:3b"
 
 
 def load_json(path):
@@ -29,11 +38,16 @@ def load_json(path):
             f"Input file does not exist: {path}"
         )
 
-    return json.loads(
-        path.read_text(
-            encoding="utf-8"
+    try:
+        return json.loads(
+            path.read_text(
+                encoding="utf-8"
+            )
         )
-    )
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            f"Invalid JSON in {path}: {exc}"
+        ) from exc
 
 
 def write_json(path, value):
@@ -73,16 +87,64 @@ def parse_args():
 
     parser.add_argument(
         "--provider",
-        choices=("mock",),
+        choices=(
+            "mock",
+            "ollama",
+        ),
         default="mock",
     )
 
     parser.add_argument(
         "--model",
-        default="deterministic-mock-v1",
+        default=None,
+    )
+
+    parser.add_argument(
+        "--endpoint",
+        default=DEFAULT_OLLAMA_ENDPOINT,
+    )
+
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=60,
     )
 
     return parser.parse_args()
+
+
+def build_analyzer(args):
+    if args.provider == "mock":
+        return (
+            deterministic_mock_analyzer,
+            "deterministic-mock",
+            args.model
+            or "deterministic-mock-v1",
+        )
+
+    if args.provider == "ollama":
+        model = (
+            args.model
+            or DEFAULT_OLLAMA_MODEL
+        )
+
+        analyzer = partial(
+            ollama_json_analyzer,
+            endpoint=args.endpoint,
+            model=model,
+            timeout=args.timeout,
+        )
+
+        return (
+            analyzer,
+            "ollama",
+            model,
+        )
+
+    raise ValueError(
+        f"Unsupported provider: "
+        f"{args.provider}"
+    )
 
 
 def main():
@@ -92,24 +154,17 @@ def main():
         args.input_assessment
     )
 
-    if args.provider == "mock":
-        analyzer = (
-            deterministic_mock_analyzer
-        )
-        provider_name = (
-            "deterministic-mock"
-        )
-    else:
-        raise ValueError(
-            f"Unsupported provider: "
-            f"{args.provider}"
-        )
+    (
+        analyzer,
+        provider_name,
+        model_name,
+    ) = build_analyzer(args)
 
     report = analyze_assessment(
         assessment,
         analyzer,
         provider_name=provider_name,
-        model_name=args.model,
+        model_name=model_name,
     )
 
     write_json(
@@ -120,6 +175,14 @@ def main():
     print(
         "AI ANALYSIS REPORT CREATED: "
         f"{args.output_report}"
+    )
+
+    print(
+        f"Provider: {provider_name}"
+    )
+
+    print(
+        f"Model: {model_name}"
     )
 
     print(
