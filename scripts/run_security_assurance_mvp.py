@@ -5,6 +5,7 @@ import json
 import sys
 
 from copy import deepcopy
+from functools import partial
 from pathlib import Path
 
 from jsonschema import (
@@ -21,6 +22,15 @@ if str(ROOT) not in sys.path:
 
 from modules.prioritize import (
     prioritize_assessment,
+)
+
+from modules.ai_analysis import (
+    analyze_assessment,
+)
+
+from modules.ai_providers import (
+    deterministic_mock_analyzer,
+    ollama_json_analyzer,
 )
 
 from modules.remediation_policy import (
@@ -51,6 +61,12 @@ from modules.security_gate_policy import (
 
 
 MVP_VERSION = "1.0"
+
+DEFAULT_OLLAMA_ENDPOINT = (
+    "http://127.0.0.1:11434/api/chat"
+)
+
+DEFAULT_OLLAMA_MODEL = "qwen2.5:3b"
 
 
 def load_json(path):
@@ -134,6 +150,40 @@ def validate_report(report):
         ) from exc
 
 
+def build_ai_analyzer(args):
+    if args.ai_provider == "mock":
+        return (
+            deterministic_mock_analyzer,
+            "deterministic-mock",
+            args.ai_model
+            or "deterministic-mock-v1",
+        )
+
+    if args.ai_provider == "ollama":
+        model = (
+            args.ai_model
+            or DEFAULT_OLLAMA_MODEL
+        )
+
+        analyzer = partial(
+            ollama_json_analyzer,
+            endpoint=args.ai_endpoint,
+            model=model,
+            timeout=args.ai_timeout,
+        )
+
+        return (
+            analyzer,
+            "ollama",
+            model,
+        )
+
+    raise ValueError(
+        f"Unsupported AI provider: "
+        f"{args.ai_provider}"
+    )
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description=(
@@ -168,6 +218,40 @@ def parse_args():
     parser.add_argument(
         "--output-dir",
         default="report/mvp",
+    )
+
+    parser.add_argument(
+        "--enable-ai-analysis",
+        action="store_true",
+        help=(
+            "Enable advisory AI-assisted "
+            "finding analysis."
+        ),
+    )
+
+    parser.add_argument(
+        "--ai-provider",
+        choices=(
+            "mock",
+            "ollama",
+        ),
+        default="mock",
+    )
+
+    parser.add_argument(
+        "--ai-model",
+        default=None,
+    )
+
+    parser.add_argument(
+        "--ai-endpoint",
+        default=DEFAULT_OLLAMA_ENDPOINT,
+    )
+
+    parser.add_argument(
+        "--ai-timeout",
+        type=int,
+        default=60,
     )
 
     parser.add_argument(
@@ -236,6 +320,30 @@ def main():
                 working
             )
         )
+
+        ai_analysis_report = None
+
+        if args.enable_ai_analysis:
+            (
+                ai_analyzer,
+                ai_provider_name,
+                ai_model_name,
+            ) = build_ai_analyzer(
+                args
+            )
+
+            ai_analysis_report = (
+                analyze_assessment(
+                    prioritized,
+                    ai_analyzer,
+                    provider_name=(
+                        ai_provider_name
+                    ),
+                    model_name=(
+                        ai_model_name
+                    ),
+                )
+            )
 
         policy_assessment = (
             attach_assessment_policy(
@@ -373,6 +481,11 @@ def main():
             / "01_prioritized_assessment.json"
         )
 
+        ai_analysis_path = (
+            output_dir
+            / "ai_analysis_report.json"
+        )
+
         policy_path = (
             output_dir
             / "02_policy_assessment.json"
@@ -417,6 +530,12 @@ def main():
             prioritized_path,
             prioritized,
         )
+
+        if ai_analysis_report is not None:
+            write_json(
+                ai_analysis_path,
+                ai_analysis_report,
+            )
 
         write_json(
             policy_path,
@@ -480,6 +599,12 @@ def main():
                 "prioritization": (
                     "completed"
                 ),
+                "ai_analysis": (
+                    "completed"
+                    if ai_analysis_report
+                    is not None
+                    else "not_enabled"
+                ),
                 "policy_guardrails": (
                     "completed"
                 ),
@@ -506,6 +631,14 @@ def main():
                     str(
                         prioritized_path
                     )
+                ),
+                "ai_analysis": (
+                    str(
+                        ai_analysis_path
+                    )
+                    if ai_analysis_report
+                    is not None
+                    else None
                 ),
                 "policy_assessment": (
                     str(
