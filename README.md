@@ -48,6 +48,7 @@ This is intentionally different from zero-touch production remediation.
 
 - Structured findings validated with JSON Schema
 - Context-aware deterministic prioritization
+- Advisory AI-assisted analysis with deterministic mock and local Ollama support
 - Environment-specific remediation policy
 - Human review and approval
 - Controlled execution planning
@@ -136,7 +137,7 @@ python3 -m pytest -q
 Current baseline:
 
 ~~~text
-333 passed, 5 warnings
+347 passed, 7 warnings
 ~~~
 
 ## Run the MVP Directly
@@ -170,6 +171,7 @@ python3 scripts/run_security_assurance_mvp.py \
 | Artifact | Purpose |
 | --- | --- |
 | `01_prioritized_assessment.json` | Prioritized findings |
+| `ai_analysis_report.json` | Optional advisory AI analysis |
 | `02_policy_assessment.json` | Policy decisions |
 | `03_execution_plan_assessment.json` | Controlled execution plan |
 | `04_execution_assessment.json` | Post-execution assessment |
