@@ -45,27 +45,59 @@ The design principle is simple:
 This is intentionally different from zero-touch production remediation.
 
 ## Core Capabilities
+# Cloud Security Assurance — Human-Controlled AI Security Automation
 
-- Structured findings validated with JSON Schema
-- Context-aware deterministic prioritization
-- Advisory AI-assisted analysis with deterministic mock and local Ollama support
-- Environment-specific remediation policy
-- Human review and approval
-- Controlled execution planning
-- Explicit opt-in remediation
-- Verification after remediation
-- Rollback-aware remediation workflow
-- SHA-256 execution evidence
-- JSON and HTML Security Assurance reports
-- Environment-specific security gates
-- Signed policy manifests
-- Policy integrity verification
-- Trusted signer and approver registries
-- Role-aware multi-approver quorum
-- Approval freshness and action scope
-- Replay protection
-- Approval usage ledger integrity
-- GitHub Actions security validation
+A security engineering MVP that transforms structured security findings into
+policy-aware, human-controlled remediation decisions using advisory AI,
+verification, rollback, execution evidence, and CI security gates.
+
+**Stable release:** `v1.2.0`  
+**Validation:** `347 automated tests passing`
+
+## Why This Project Matters
+
+Security automation often moves toward increasingly autonomous remediation.
+
+This project takes a different approach:
+
+> **AI assists analysis. Humans retain control. Policies govern execution. Evidence proves what happened.**
+
+The goal is not zero-touch remediation. The goal is trustworthy security
+automation in which important actions remain policy-controlled, attributable,
+verifiable, and auditable.
+
+## Security Assurance Workflow
+
+```text
+Security Scanner / Structured Findings
+              |
+              v
+Context-Aware Prioritization
+              |
+              v
+Advisory AI Analysis
+              |
+              v
+Policy Guardrails
+              |
+              v
+Human Approval
+              |
+              v
+Controlled Remediation
+              |
+              v
+Verification / Rollback
+              |
+              v
+Execution Evidence
+              |
+              v
+Security Assurance Report
+              |
+              v
+Security Gate
+- 
 
 ## Safety Model
 
